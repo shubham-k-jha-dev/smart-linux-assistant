@@ -5,12 +5,8 @@ Unit tests for CommandExecutor.
 from __future__ import annotations
 from unittest.mock import patch
 import pytest
-<<<<<<< HEAD
-from linux_assistant.exceptions import CommandExecutionError, CommandTimeoutError, ValidationError
-=======
 
 from linux_assistant.exceptions import CommandExecutionError, CommandTimeoutError, ValidationError, CommandFailedError
->>>>>>> 0d9453b (add execute_checked() with CommandFailedError for non-zero exit codes)
 from linux_assistant.models import CommandResult
 from linux_assistant.services.command_executor import CommandExecutor
 
@@ -92,9 +88,6 @@ class TestCommandExecutorFailureWrapping:
         executor = CommandExecutor()
         with pytest.raises(CommandExecutionError):
             executor.execute("sleep 5", timeout=1)
-<<<<<<< HEAD
-=======
-            
             
 class TestCommandExecutorChecked:
     """Tests for execute_checked()."""
@@ -128,4 +121,3 @@ class TestCommandExecutorChecked:
         executor = CommandExecutor()
         with pytest.raises(CommandTimeoutError):
             executor.execute_checked("sleep 5", timeout=1)
->>>>>>> 0d9453b (add execute_checked() with CommandFailedError for non-zero exit codes)
