@@ -14,23 +14,32 @@ authors = [
     { name = "Shubham Kumar Jha" }
 ]
 
+[project.urls]
+Homepage = "https://github.com/shubham-k-jha-dev/smart-linux-assistant"
+Repository = "https://github.com/shubham-k-jha-dev/smart-linux-assistant"
+Issues = "https://github.com/shubham-k-jha-dev/smart-linux-assistant/issues"
+
 keywords = [
     "linux",
     "cli",
     "automation",
     "terminal",
-    "ai",
-    "fastapi",
-    "rag",
-    "vector-search"
+    "devops",
+    "shell",
+    "productivity"
 ]
 
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: POSIX :: Linux",
     "License :: OSI Approved :: MIT License",
-    "Intended Audience :: Developers"
+    "Intended Audience :: Developers",
+    "Environment :: Console",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
+    "Development Status :: 3 - Alpha",
 ]
 
 dependencies = [

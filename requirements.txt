@@ -1,0 +1,3 @@
+# Runtime dependencies are declared in pyproject.toml under [project.dependencies].
+# This file is kept for compatibility with tools that expect a requirements.txt
+# to exist, but is not the source of truth for this project's dependencies.
