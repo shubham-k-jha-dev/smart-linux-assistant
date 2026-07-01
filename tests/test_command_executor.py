@@ -5,7 +5,6 @@ Unit tests for CommandExecutor.
 from __future__ import annotations
 from unittest.mock import patch
 import pytest
-
 from linux_assistant.exceptions import CommandExecutionError, CommandTimeoutError, ValidationError
 from linux_assistant.models import CommandResult
 from linux_assistant.services.command_executor import CommandExecutor
