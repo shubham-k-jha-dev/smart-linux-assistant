@@ -7,7 +7,7 @@ from __future__ import annotations
 import subprocess
 import time
 from datetime import datetime, timezone
-from linux_assistant.exceptions import ValidationError
+from linux_assistant.exceptions import ValidationError, CommandExecutionError, CommandTimeoutError
 from linux_assistant.models import CommandResult
 from linux_assistant.utils.logger import get_logger
 
@@ -37,16 +37,36 @@ class CommandExecutor:
         logger.info("Executing command: %s", command)
 
         start_time = time.perf_counter()
-
-        completed_process = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
-
+        try:
+            completed_process = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            duration = time.perf_counter() - start_time
+            logger.error(
+                "Command timed out after %.3f seconds: %s",
+                duration,
+                command,
+            )
+            raise CommandTimeoutError(
+                f"Command '{command}' timed out after {timeout} seconds."
+            ) from exc
+        except OSError as exc:
+            duration = time.perf_counter() - start_time
+            logger.error(
+                "Command could not be executed: %s (%s)",
+                command,
+                exc,
+            )
+            raise CommandExecutionError(
+                f"Command '{command}' could not be executed: {exc}"
+            ) from exc
+            
         duration = time.perf_counter() - start_time
 
         logger.info(

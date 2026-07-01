@@ -5,6 +5,8 @@ avoids exposing the internal module structure.
 """
 
 from .base import (
+    CommandExecutionError,
+    CommandTimeoutError,
     ConfigurationError,
     RepositoryError,
     ServiceError,
@@ -18,4 +20,6 @@ __all__ = [
     "RepositoryError",
     "ServiceError",
     "ValidationError",
+    "CommandExecutionError",
+    "CommandTimeoutError",
 ]

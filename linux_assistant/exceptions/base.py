@@ -37,3 +37,19 @@ class ValidationError(SmartLinuxAssistantError):
     Raised when user-provided or internally generated data fails
     validation before processing.
     """
+    
+class CommandExecutionError(ServiceError):
+    """
+    Raised when a shell command cannot be executed at all, for
+    example because the shell could not be spawned or the system
+    refused to run it. This does NOT cover commands that ran but
+    returned a non-zero exit code; a non-zero exit code is a normal,
+    successfully-reported outcome captured in CommandResult.
+    """
+
+
+class CommandTimeoutError(CommandExecutionError):
+    """
+    Raised when a shell command exceeds its allotted timeout and is
+    forcibly terminated before completion.
+    """
