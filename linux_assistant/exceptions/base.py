@@ -3,7 +3,10 @@ exception hierarchy for the Smart Linux Assistant.
 """
 
 from __future__ import annotations
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from linux_assistant.models import CommandResult
 
 class SmartLinuxAssistantError(Exception):
     """
@@ -53,3 +56,19 @@ class CommandTimeoutError(CommandExecutionError):
     Raised when a shell command exceeds its allotted timeout and is
     forcibly terminated before completion.
     """
+    
+class CommandFailedError(ServiceError):
+    """
+    Raised by execute_checked() when a command runs to completion but
+    exits with a non-zero status code. This is distinct from
+    CommandExecutionError: the command DID execute successfully at
+    the OS level, it simply reported failure via its exit code.
+    """
+
+    def __init__(self, result: "CommandResult") -> None:
+        self.result = result
+        message = (
+            f"Command '{result.command}' failed with exit code "
+            f"{result.exit_code}."
+        )
+        super().__init__(message)

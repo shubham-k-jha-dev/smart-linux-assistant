@@ -3,11 +3,10 @@ Execute Linux commands and return structured results.
 """
 
 from __future__ import annotations
-
 import subprocess
 import time
 from datetime import datetime, timezone
-from linux_assistant.exceptions import ValidationError, CommandExecutionError, CommandTimeoutError
+from linux_assistant.exceptions import ValidationError, CommandExecutionError, CommandTimeoutError, CommandFailedError
 from linux_assistant.models import CommandResult
 from linux_assistant.utils.logger import get_logger
 
@@ -83,3 +82,28 @@ class CommandExecutor:
             executed_at=datetime.now(timezone.utc),
             duration_seconds=duration,
         )
+    
+    def execute_checked(
+        self,
+        command: str,
+        timeout: int = 30,
+    ) -> CommandResult:
+        """
+        Execute a Linux command and raise if it fails.
+        Behaves exactly like execute(), except that a non-zero exit
+        code raises CommandFailedError instead of being returned
+        silently inside a CommandResult. Use this when a failed
+        command should be treated as an exceptional condition rather
+        than a normal outcome the caller must check manually.
+        """
+        result = self.execute(command, timeout=timeout)
+
+        if result.failed:
+            logger.error(
+                "Command '%s' failed with exit code %d.",
+                result.command,
+                result.exit_code,
+            )
+            raise CommandFailedError(result)
+
+        return result

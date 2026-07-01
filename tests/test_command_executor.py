@@ -5,7 +5,12 @@ Unit tests for CommandExecutor.
 from __future__ import annotations
 from unittest.mock import patch
 import pytest
+<<<<<<< HEAD
 from linux_assistant.exceptions import CommandExecutionError, CommandTimeoutError, ValidationError
+=======
+
+from linux_assistant.exceptions import CommandExecutionError, CommandTimeoutError, ValidationError, CommandFailedError
+>>>>>>> 0d9453b (add execute_checked() with CommandFailedError for non-zero exit codes)
 from linux_assistant.models import CommandResult
 from linux_assistant.services.command_executor import CommandExecutor
 
@@ -87,3 +92,40 @@ class TestCommandExecutorFailureWrapping:
         executor = CommandExecutor()
         with pytest.raises(CommandExecutionError):
             executor.execute("sleep 5", timeout=1)
+<<<<<<< HEAD
+=======
+            
+            
+class TestCommandExecutorChecked:
+    """Tests for execute_checked()."""
+
+    def test_execute_checked_returns_result_on_success(self) -> None:
+        executor = CommandExecutor()
+        result = executor.execute_checked("echo hello")
+        assert result.succeeded is True
+        assert result.stdout == "hello"
+
+    def test_execute_checked_raises_command_failed_error_on_nonzero_exit(
+        self,
+    ) -> None:
+        executor = CommandExecutor()
+        with pytest.raises(CommandFailedError):
+            executor.execute_checked("ls /no-such-directory-xyz")
+
+    def test_execute_checked_error_carries_the_command_result(self) -> None:
+        executor = CommandExecutor()
+        with pytest.raises(CommandFailedError) as exc_info:
+            executor.execute_checked("ls /no-such-directory-xyz")
+        assert exc_info.value.result.failed is True
+        assert exc_info.value.result.exit_code != 0
+
+    def test_execute_checked_propagates_validation_error(self) -> None:
+        executor = CommandExecutor()
+        with pytest.raises(ValidationError):
+            executor.execute_checked("")
+
+    def test_execute_checked_propagates_command_timeout_error(self) -> None:
+        executor = CommandExecutor()
+        with pytest.raises(CommandTimeoutError):
+            executor.execute_checked("sleep 5", timeout=1)
+>>>>>>> 0d9453b (add execute_checked() with CommandFailedError for non-zero exit codes)
