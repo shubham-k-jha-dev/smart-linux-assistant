@@ -4,6 +4,7 @@ Smart Linux Assistant is an AI-powered Linux operations assistant that understan
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+[![CI](https://github.com/shubham-k-jha-dev/smart-linux-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/shubham-k-jha-dev/smart-linux-assistant/actions/workflows/ci.yml)
 
 ## Project Overview
 
