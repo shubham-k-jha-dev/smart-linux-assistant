@@ -36,7 +36,8 @@ def get_logger(name: str) -> logging.Logger:
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
-
+    
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     file_handler = RotatingFileHandler(
         filename=LOG_FILE,
         maxBytes=5 * 1024 * 1024,

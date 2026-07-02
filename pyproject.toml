@@ -14,11 +14,6 @@ authors = [
     { name = "Shubham Kumar Jha" }
 ]
 
-[project.urls]
-Homepage = "https://github.com/shubham-k-jha-dev/smart-linux-assistant"
-Repository = "https://github.com/shubham-k-jha-dev/smart-linux-assistant"
-Issues = "https://github.com/shubham-k-jha-dev/smart-linux-assistant/issues"
-
 keywords = [
     "linux",
     "cli",
@@ -39,12 +34,17 @@ classifiers = [
     "Environment :: Console",
     "Topic :: System :: Systems Administration",
     "Topic :: Utilities",
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 3 - Alpha"
 ]
 
 dependencies = [
     "typer>=0.12.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/shubham-k-jha-dev/smart-linux-assistant"
+Repository = "https://github.com/shubham-k-jha-dev/smart-linux-assistant"
+Issues = "https://github.com/shubham-k-jha-dev/smart-linux-assistant/issues"
 
 [project.scripts]
 smart-linux = "linux_assistant.cli.main:app"
