@@ -5,6 +5,7 @@ Tests for the command-line interface.
 from __future__ import annotations
 from typer.testing import CliRunner
 from linux_assistant.cli.main import app
+from unittest.mock import MagicMock, patch
 
 runner = CliRunner()
 
@@ -47,3 +48,33 @@ class TestDoctorCommand:
     def test_doctor_exit_code_is_zero_or_one(self) -> None:
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code in (0, 1)
+        
+class TestExplainCommand:
+    """Tests for `smart-linux explain`."""
+
+    def test_explain_fails_cleanly_without_api_key(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+        result = runner.invoke(app, ["explain", "some error"], catch_exceptions=False)
+        assert result.exit_code == 1
+        assert "GROQ_API_KEY" in result.output
+
+    def test_explain_returns_explanation_on_success(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
+
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "Mocked explanation."
+
+        with patch(
+            "linux_assistant.cli.main.Explainer"
+        ) as MockExplainerClass:
+            mock_instance = MockExplainerClass.return_value
+            mock_instance.explain.return_value = "Mocked explanation."
+
+            result = runner.invoke(app, ["explain", "some error"])
+
+        assert result.exit_code == 0
+        assert "Mocked explanation." in result.stdout

@@ -72,3 +72,19 @@ class CommandFailedError(ServiceError):
             f"{result.exit_code}."
         )
         super().__init__(message)
+        
+        
+class MissingAPIKeyError(ConfigurationError):
+    """
+    Raised when an AI-powered feature is used but the required API
+    key environment variable is not set.
+    """
+
+    def __init__(self, env_var_name: str) -> None:
+        self.env_var_name = env_var_name
+        message = (
+            f"The '{env_var_name}' environment variable is not set. "
+            f"Get a free API key at https://console.groq.com and set it with:\n"
+            f"  export {env_var_name}=\"your-key-here\""
+        )
+        super().__init__(message)

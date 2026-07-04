@@ -5,7 +5,8 @@ Command-line interface for the Smart Linux Assistant.
 from __future__ import annotations
 import sys
 import typer
-from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, ValidationError
+from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, ValidationError, MissingAPIKeyError, ServiceError
+from linux_assistant.services.explainer import Explainer
 from linux_assistant.services.command_executor import CommandExecutor
 from linux_assistant.utils.logger import get_logger
 from linux_assistant.utils.shell import command_exists
@@ -106,6 +107,33 @@ def doctor() -> None:
         raise typer.Exit(code=1)
 
     typer.secho("All checked tools are available.", fg=typer.colors.GREEN)
+    
+@app.command()
+def explain(
+    text: str = typer.Argument(
+        ..., help="The command, error message, or output to explain."
+    ),
+) -> None:
+    """
+    Get a plain-language explanation of a command or error message.
+    """
+    try:
+        explainer = Explainer()
+        result = explainer.explain(text)
+
+    except MissingAPIKeyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    except ValidationError as exc:
+        typer.secho(f"Invalid input: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+
+    except ServiceError as exc:
+        typer.secho(f"Explanation failed: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(result)
 
 
 def main() -> None:
