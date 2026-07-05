@@ -96,6 +96,19 @@ smart-linux run "echo hello"
 ```bash
 smart-linux doctor
 ```
+- Get an AI-powered explanation of a command or error message:
+
+```bash
+smart-linux explain "permission denied when running ./script.sh"
+```
+
+  Requires a free Groq API key set as an environment variable:
+
+```bash
+export GROQ_API_KEY="your-key-here"
+```
+
+  Get a free key at [console.groq.com](https://console.groq.com).
 
 ### Example output
 
@@ -121,7 +134,8 @@ These outputs reflect the CLI behaviour: standard output is printed for successf
 - Command execution: implemented using `linux_assistant.services.command_executor.CommandExecutor` which returns `CommandResult` instances.
 - Logging & configuration: implemented via `linux_assistant.utils.logger` and `linux_assistant.config.settings`.
 - Packaging: console script entry points are declared in `pyproject.toml`.
-- AI-powered features: the `pyproject.toml` project description mentions AI-powered functionality, but this repository's source code currently implements only a CLI for command execution and environment checks. No AI models, integrations, or related modules are present in the codebase as of this commit.
+- AI-powered explanations: implemented — `smart-linux explain` uses the Groq API (`llama-3.3-70b-versatile`) to generate plain-language explanations of commands and error messages, via `linux_assistant.services.explainer.Explainer`. Requires a user-supplied `GROQ_API_KEY` environment variable.
+- Additional AI features (command suggestions, history analysis, documentation lookup) are planned but not yet implemented.
 
 ## Install from PyPI
 
