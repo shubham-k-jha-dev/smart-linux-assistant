@@ -3,9 +3,9 @@ AI-powered explanations for Linux commands and error messages.
 """
 
 from __future__ import annotations
-
+import groq
 from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client
-from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError
+from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError, RateLimitError
 from linux_assistant.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -70,9 +70,15 @@ class Explainer:
                     {"role": "user", "content": text},
                 ],
             )
+        except groq.RateLimitError as exc:
+            logger.error("Rate limit hit: %s", exc)
+            raise RateLimitError(
+                "Groq API rate limit reached. Please wait a moment and try again."
+            ) from exc
         except Exception as exc:
             logger.error("Explanation request failed: %s", exc)
             raise ServiceError(f"Failed to get explanation: {exc}") from exc
+        
         explanation = response.choices[0].message.content
         if explanation is None:
             raise ServiceError("Received an empty explanation from the API.")
@@ -103,9 +109,14 @@ class Explainer:
                     {"role": "user", "content": user_content},
                 ],
             )
+        except groq.RateLimitError as exc:
+            logger.error("Rate limit hit: %s", exc)
+            raise RateLimitError(
+                "Groq API rate limit reached. Please wait a moment and try again."
+            ) from exc
         except Exception as exc:
-            logger.error("Fix suggestion request failed: %s", exc)
-            raise ServiceError(f"Failed to get fix suggestion: {exc}") from exc
+            logger.error("Explanation request failed: %s", exc)
+            raise ServiceError(f"Failed to get explanation: {exc}") from exc
 
         suggestion = response.choices[0].message.content
 

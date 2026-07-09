@@ -10,6 +10,7 @@ from .base import (
     CommandTimeoutError,
     ConfigurationError,
     MissingAPIKeyError,
+    RateLimitError,
     RepositoryError,
     ServiceError,
     SmartLinuxAssistantError,
@@ -26,4 +27,5 @@ __all__ = [
     "CommandTimeoutError",
     "CommandFailedError",
     "MissingAPIKeyError",
+    "RateLimitError",
 ]

@@ -124,3 +124,34 @@ class TestFixCommand:
 
         assert result.exit_code == 1
         assert "No confident fix" in result.output
+        
+class TestSearchCommand:
+    """Tests for `smart-linux search`."""
+
+    def test_search_fails_cleanly_without_api_key(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+        result = runner.invoke(
+            app, ["search", "find large files"], catch_exceptions=False
+        )
+        assert result.exit_code == 1
+        assert "GROQ_API_KEY" in result.output
+
+    def test_search_returns_answer_on_success(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
+
+        with patch("linux_assistant.cli.main.Searcher") as MockSearcherClass:
+            mock_instance = MockSearcherClass.return_value
+            mock_instance.search.return_value = "$ find . -size +100M"
+
+            result = runner.invoke(app, ["search", "find large files"])
+
+        assert result.exit_code == 0
+        assert "find . -size +100M" in result.output
+
+    def test_search_rejects_empty_query(self) -> None:
+        result = runner.invoke(app, ["search", ""])
+        assert result.exit_code == 2

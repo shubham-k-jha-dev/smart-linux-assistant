@@ -88,3 +88,11 @@ class MissingAPIKeyError(ConfigurationError):
             f"  export {env_var_name}=\"your-key-here\""
         )
         super().__init__(message)
+        
+        
+class RateLimitError(ServiceError):
+    """
+    Raised when an AI-powered feature hits the API provider's rate
+    limit. This is a transient condition — retrying after a short
+    delay will typically succeed.
+    """

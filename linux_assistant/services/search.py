@@ -3,21 +3,21 @@ AI-powered natural-language search for Linux commands and tasks.
 """
 
 from __future__ import annotations
-
-from linux_assistant.exceptions import ServiceError, ValidationError
+import groq
+from linux_assistant.exceptions import ServiceError, ValidationError, RateLimitError
 from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client
 from linux_assistant.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-SEARCH_SYSTEM_PROMPT = """You are a Linux command lookup tool operating in a raw terminal. The user will describe a desired action in plain language. Your objective is to provide the required command and a brief explanation.
+SEARCH_SYSTEM_PROMPT = """You are a Linux command lookup tool operating in a raw terminal. The user will describe a desired action in plain language. Your objective is to provide a concrete, ready-to-run command and a brief explanation.
 
 CRITICAL CONSTRAINTS:
 1. COMMAND FORMAT: Place the suggested command on its own line, prefixed with exactly "$ ". 
 2. EXPLANATION: Provide a 1-2 sentence practical explanation on the line immediately below the command.
 3. ZERO MARKDOWN: Do NOT use backticks (`), asterisks (*), or hashes (#). Output pure raw text.
 4. ZERO FILLER: Do not use conversational openings like "Sure" or "Here is the command". Start immediately with the "$ " command line.
-5. PLACEHOLDERS: If arbitrary files or paths are required, indicate them using angle brackets (e.g., <filename> or <directory_path>).
+5. READY-TO-RUN (NO PLACEHOLDERS): Always use realistic, runnable values in the command itself. Use standard defaults (like '.' for the current directory) or plausible example filenames (like 'example.txt'). NEVER use angle-bracket placeholders like <directory_path> or <filename>. The user should be able to copy and run the command directly.
 6. BREVITY: Keep the entire response strictly under 120 words.
 """
 
@@ -55,9 +55,14 @@ class Searcher:
                     {"role": "user", "content": query},
                 ],
             )
+        except groq.RateLimitError as exc:
+            logger.error("Rate limit hit: %s", exc)
+            raise RateLimitError(
+                "Groq API rate limit reached. Please wait a moment and try again."
+            ) from exc
         except Exception as exc:
-            logger.error("Search request failed: %s", exc)
-            raise ServiceError(f"Search failed: {exc}") from exc
+            logger.error("Explanation request failed: %s", exc)
+            raise ServiceError(f"Failed to get explanation: {exc}") from exc
 
         answer = response.choices[0].message.content
 

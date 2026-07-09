@@ -5,11 +5,12 @@ Command-line interface for the Smart Linux Assistant.
 from __future__ import annotations
 import sys
 import typer
-from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, ValidationError, MissingAPIKeyError, ServiceError
+from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, ValidationError, MissingAPIKeyError, ServiceError, RateLimitError
 from linux_assistant.services.explainer import Explainer
 from linux_assistant.services.command_executor import CommandExecutor
 from linux_assistant.utils.logger import get_logger
 from linux_assistant.utils.shell import command_exists
+from linux_assistant.services.search import Searcher
 
 logger = get_logger(__name__)
 
@@ -128,6 +129,10 @@ def explain(
     except ValidationError as exc:
         typer.secho(f"Invalid input: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2)
+    
+    except RateLimitError as exc:
+        typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
+        raise typer.Exit(code=1)
 
     except ServiceError as exc:
         typer.secho(f"Explanation failed: {exc}", fg=typer.colors.RED, err=True)
@@ -176,6 +181,10 @@ def fix(
     except MissingAPIKeyError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
+    
+    except RateLimitError as exc:
+        typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
+        raise typer.Exit(code=1)
 
     except ServiceError as exc:
         typer.secho(f"Could not get a fix suggestion: {exc}", fg=typer.colors.RED, err=True)
@@ -191,6 +200,37 @@ def fix(
     typer.echo(f'Run it manually, or try: smart-linux run "{suggestion}"')
 
     raise typer.Exit(code=1)
+
+@app.command()
+def search(
+    query: str = typer.Argument(
+        ..., help="A natural-language question about a Linux task."
+    ),
+) -> None:
+    """
+    Search for how to accomplish a Linux task in plain language.
+    """
+    try:
+        searcher = Searcher()
+        result = searcher.search(query)
+
+    except MissingAPIKeyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    except ValidationError as exc:
+        typer.secho(f"Invalid input: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    
+    except RateLimitError as exc:
+        typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
+        raise typer.Exit(code=1)
+
+    except ServiceError as exc:
+        typer.secho(f"Search failed: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(result)
 
 
 def main() -> None:
