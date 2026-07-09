@@ -137,6 +137,14 @@ These outputs reflect the CLI behaviour: standard output is printed for successf
 - AI-powered explanations: implemented — `smart-linux explain` uses the Groq API (`llama-3.3-70b-versatile`) to generate plain-language explanations of commands and error messages, via `linux_assistant.services.explainer.Explainer`. Requires a user-supplied `GROQ_API_KEY` environment variable.
 - Additional AI features (command suggestions, history analysis, documentation lookup) are planned but not yet implemented.
 
+## Known Limitations
+
+- Tested and verified on Linux (native and WSL). Not yet tested on macOS or native Windows Python — behavior on those platforms is currently unverified, though the codebase avoids Linux-only APIs where possible.
+
+## Privacy Note
+
+The `explain`, `fix`, and `search` commands send the command text, error output, or your query to Groq's API for processing. Avoid running these commands on text that contains secrets, passwords, or sensitive data, since that content leaves your machine.
+
 ## Install from PyPI
 
 If this package is published to PyPI, it can be installed with:
