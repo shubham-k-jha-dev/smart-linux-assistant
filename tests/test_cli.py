@@ -78,3 +78,49 @@ class TestExplainCommand:
 
         assert result.exit_code == 0
         assert "Mocked explanation." in result.stdout
+        
+class TestFixCommand:
+    """Tests for `smart-linux fix`."""
+
+    def test_fix_reports_success_when_command_succeeds(self) -> None:
+        result = runner.invoke(app, ["fix", "echo hello"])
+        assert result.exit_code == 0
+        assert "nothing to fix" in result.output
+
+    def test_fix_fails_cleanly_without_api_key(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+        result = runner.invoke(
+            app, ["fix", "ls /no-such-directory-xyz"], catch_exceptions=False
+        )
+        assert result.exit_code == 1
+        assert "GROQ_API_KEY" in result.output
+
+    def test_fix_prints_suggestion_on_failure(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
+
+        with patch("linux_assistant.cli.main.Explainer") as MockExplainerClass:
+            mock_instance = MockExplainerClass.return_value
+            mock_instance.suggest_fix.return_value = "git status"
+
+            result = runner.invoke(app, ["fix", "gti status"])
+
+        assert result.exit_code == 1
+        assert "git status" in result.output
+
+    def test_fix_reports_no_fix_available(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
+
+        with patch("linux_assistant.cli.main.Explainer") as MockExplainerClass:
+            mock_instance = MockExplainerClass.return_value
+            mock_instance.suggest_fix.return_value = None
+
+            result = runner.invoke(app, ["fix", "ls /no-such-directory-xyz"])
+
+        assert result.exit_code == 1
+        assert "No confident fix" in result.output

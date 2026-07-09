@@ -134,6 +134,63 @@ def explain(
         raise typer.Exit(code=1)
 
     typer.echo(result)
+    
+@app.command()
+def fix(
+    command: str = typer.Argument(..., help="The failing command to fix."),
+    timeout: int = typer.Option(30, help="Timeout in seconds."),
+) -> None:
+    """
+    Run a command, and if it fails, suggest a corrected version.
+    """
+    executor = CommandExecutor()
+
+    try:
+        result = executor.execute(command, timeout=timeout)
+
+    except ValidationError as exc:
+        typer.secho(f"Invalid input: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+
+    except CommandTimeoutError as exc:
+        typer.secho(f"Timed out: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=124)
+
+    except CommandExecutionError as exc:
+        typer.secho(f"Execution error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    if result.succeeded:
+        typer.secho(f"Command succeeded, nothing to fix.", fg=typer.colors.GREEN)
+        if result.stdout:
+            typer.echo(result.stdout)
+        raise typer.Exit(code=0)
+
+    typer.secho(f"Command failed: {result.stderr or '(no error output)'}", fg=typer.colors.RED)
+    typer.echo()
+
+    try:
+        explainer = Explainer()
+        suggestion = explainer.suggest_fix(command, result.stderr)
+
+    except MissingAPIKeyError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    except ServiceError as exc:
+        typer.secho(f"Could not get a fix suggestion: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    if suggestion is None:
+        typer.secho("No confident fix available.", fg=typer.colors.YELLOW)
+        raise typer.Exit(code=1)
+
+    typer.secho("Suggested fix:", fg=typer.colors.CYAN)
+    typer.echo(f"  {suggestion}")
+    typer.echo()
+    typer.echo(f'Run it manually, or try: smart-linux run "{suggestion}"')
+
+    raise typer.Exit(code=1)
 
 
 def main() -> None:

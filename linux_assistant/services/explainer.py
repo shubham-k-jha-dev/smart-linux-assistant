@@ -32,6 +32,17 @@ When responding, strictly adhere to the following guidelines:
 Keep responses concise and scannable. Limit your response to the essential information needed to solve the user's problem or answer their question, avoiding unnecessary fluff.
 """
 
+FIX_SYSTEM_PROMPT = """You are an automated Linux command correction tool operating in a raw terminal. You receive a failed shell command and its corresponding error message. Your single purpose is to output the exact, executable corrected command.
+
+CRITICAL CONSTRAINTS:
+1. Output ONLY the corrected command on a single line.
+2. Provide zero conversational filler (do not start with "Here is the command" or "Try this").
+3. Use zero Markdown formatting (no backticks or formatting blocks).
+4. Do not include quotes or a leading '$' prompt.
+5. Retain the user's original filenames, paths, and valid arguments exactly as provided; do not substitute them with generic placeholders.
+6. If you cannot determine a highly confident fix, output exactly: NO_FIX_AVAILABLE
+"""
+
 
 class Explainer:
     """
@@ -77,3 +88,45 @@ class Explainer:
         logger.info("Explanation received (%d characters).", len(explanation))
 
         return explanation.strip()
+    
+    def suggest_fix(self, command: str, error: str) -> str | None:
+        """
+        Suggest a corrected version of a failed shell command.
+        """
+        command = command.strip()
+
+        if not command:
+            from linux_assistant.exceptions import ValidationError
+
+            raise ValidationError("Command to fix cannot be empty.")
+
+        user_content = f"Command: {command}\nError: {error.strip()}"
+
+        logger.info("Requesting fix suggestion for: %s", command)
+
+        try:
+            response = self._client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[
+                    {"role": "system", "content": FIX_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_content},
+                ],
+            )
+        except Exception as exc:
+            logger.error("Fix suggestion request failed: %s", exc)
+            raise ServiceError(f"Failed to get fix suggestion: {exc}") from exc
+
+        suggestion = response.choices[0].message.content
+
+        if suggestion is None:
+            raise ServiceError("Received an empty fix suggestion from the API.")
+
+        suggestion = suggestion.strip()
+
+        if suggestion == "NO_FIX_AVAILABLE":
+            logger.info("No confident fix available for: %s", command)
+            return None
+
+        logger.info("Fix suggestion received: %s", suggestion)
+
+        return suggestion
