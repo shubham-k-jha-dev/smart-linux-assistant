@@ -4,15 +4,11 @@ AI-powered explanations for Linux commands and error messages.
 
 from __future__ import annotations
 
-import os
-from groq import Groq
+from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client
 from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError
 from linux_assistant.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-GROQ_API_KEY = "GROQ_API_KEY"
-GROQ_MODEL = "llama-3.3-70b-versatile"
 
 SYSTEM_PROMPT = """You are an elite Linux System Administrator and DevOps expert. Your primary role is to analyze, explain, and troubleshoot Linux shell commands, shell scripts, error messages, and terminal output. 
 
@@ -51,12 +47,7 @@ class Explainer:
     """
 
     def __init__(self) -> None:
-        api_key = os.environ.get(GROQ_API_KEY)
-
-        if not api_key:
-            raise MissingAPIKeyError(GROQ_API_KEY)
-
-        self._client = Groq(api_key=api_key)
+        self._client = build_groq_client()
 
     def explain(self, text: str) -> str:
         """
