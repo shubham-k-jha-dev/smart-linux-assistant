@@ -7,6 +7,7 @@ import groq
 from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client
 from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError, RateLimitError
 from linux_assistant.utils.logger import get_logger
+from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client, truncate_for_api
 
 logger = get_logger(__name__)
 
@@ -58,7 +59,11 @@ class Explainer:
         text = text.strip()
 
         if not text:
+            from linux_assistant.exceptions import ValidationError
+
             raise ValidationError("Text to explain cannot be empty.")
+
+        text = truncate_for_api(text)
 
         logger.info("Requesting explanation for: %s", text)
 
@@ -96,6 +101,8 @@ class Explainer:
             from linux_assistant.exceptions import ValidationError
 
             raise ValidationError("Command to fix cannot be empty.")
+
+        error = truncate_for_api(error, keep_end=True)
 
         user_content = f"Command: {command}\nError: {error.strip()}"
 

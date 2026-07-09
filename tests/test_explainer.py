@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 import pytest
-from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError
+from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError, RateLimitError
 from linux_assistant.services.explainer import Explainer
 
 
@@ -79,6 +79,25 @@ class TestExplainerExplain:
         )
         with pytest.raises(ServiceError):
             explainer.explain("some error")
+            
+    def test_explain_raises_rate_limit_error_on_groq_rate_limit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import groq
+
+        explainer = self._make_explainer_with_mocked_client(monkeypatch, "irrelevant")
+
+        mock_http_response = MagicMock()
+        mock_http_response.status_code = 429
+
+        explainer._client.chat.completions.create = MagicMock(
+            side_effect=groq.RateLimitError(
+                "Rate limit exceeded", response=mock_http_response, body=None
+            )
+        )
+
+        with pytest.raises(RateLimitError):
+            explainer.explain("some text")
             
 class TestExplainerSuggestFix:
     """Tests for Explainer.suggest_fix(), with the Groq API mocked out."""

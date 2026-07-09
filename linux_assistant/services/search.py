@@ -7,6 +7,7 @@ import groq
 from linux_assistant.exceptions import ServiceError, ValidationError, RateLimitError
 from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client
 from linux_assistant.utils.logger import get_logger
+from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client, truncate_for_api
 
 logger = get_logger(__name__)
 
@@ -44,6 +45,8 @@ class Searcher:
 
         if not query:
             raise ValidationError("Search query cannot be empty.")
+
+        query = truncate_for_api(query)
 
         logger.info("Searching for: %s", query)
 

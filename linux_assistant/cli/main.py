@@ -118,6 +118,10 @@ def explain(
     """
     Get a plain-language explanation of a command or error message.
     """
+    if not text.strip():
+        typer.secho("Invalid input: Text to explain cannot be empty.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+    
     try:
         explainer = Explainer()
         result = explainer.explain(text)
@@ -125,11 +129,7 @@ def explain(
     except MissingAPIKeyError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
-
-    except ValidationError as exc:
-        typer.secho(f"Invalid input: {exc}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
-    
+   
     except RateLimitError as exc:
         typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
         raise typer.Exit(code=1)
@@ -156,7 +156,7 @@ def fix(
     except ValidationError as exc:
         typer.secho(f"Invalid input: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2)
-
+    
     except CommandTimeoutError as exc:
         typer.secho(f"Timed out: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=124)
@@ -173,7 +173,7 @@ def fix(
 
     typer.secho(f"Command failed: {result.stderr or '(no error output)'}", fg=typer.colors.RED)
     typer.echo()
-
+   
     try:
         explainer = Explainer()
         suggestion = explainer.suggest_fix(command, result.stderr)
@@ -210,6 +210,10 @@ def search(
     """
     Search for how to accomplish a Linux task in plain language.
     """
+    if not query.strip():
+        typer.secho("Invalid input: Search query cannot be empty.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+
     try:
         searcher = Searcher()
         result = searcher.search(query)
@@ -218,10 +222,6 @@ def search(
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
-    except ValidationError as exc:
-        typer.secho(f"Invalid input: {exc}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
-    
     except RateLimitError as exc:
         typer.secho(str(exc), fg=typer.colors.YELLOW, err=True)
         raise typer.Exit(code=1)

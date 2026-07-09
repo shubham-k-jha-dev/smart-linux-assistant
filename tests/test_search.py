@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 import pytest
-from linux_assistant.exceptions import ServiceError, ValidationError
+from linux_assistant.exceptions import ServiceError, ValidationError, RateLimitError
 from linux_assistant.services.search import Searcher
 
 
@@ -65,4 +65,23 @@ class TestSearcherSearch:
             side_effect=RuntimeError("network exploded")
         )
         with pytest.raises(ServiceError):
+            searcher.search("some query")
+            
+    def test_search_raises_rate_limit_error_on_groq_rate_limit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import groq
+
+        searcher = self._make_searcher_with_mocked_client(monkeypatch, "irrelevant")
+
+        mock_http_response = MagicMock()
+        mock_http_response.status_code = 429
+
+        searcher._client.chat.completions.create = MagicMock(
+            side_effect=groq.RateLimitError(
+                "Rate limit exceeded", response=mock_http_response, body=None
+            )
+        )
+
+        with pytest.raises(RateLimitError):
             searcher.search("some query")
