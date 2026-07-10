@@ -110,6 +110,25 @@ export GROQ_API_KEY="your-key-here"
 
   Get a free key at [console.groq.com](https://console.groq.com).
 
+- Fix a failing command:
+
+```bash
+smart-linux fix "ls /nonexistent"
+```
+
+- Options:
+  - `--timeout <seconds>` — maximum seconds to allow the command to run (default: 30)
+
+- This runs the command and, if it fails, uses the AI to suggest a corrected version. Requires the same `GROQ_API_KEY` environment variable as the `explain` command.
+
+- Search for a Linux task in plain language:
+
+```bash
+smart-linux search "find the 10 largest files in the current directory"
+```
+
+- This returns a concrete command and brief explanation for the requested task. Requires the same `GROQ_API_KEY` environment variable as the `explain` command.
+
 ### Example output
 
 Successful command:
