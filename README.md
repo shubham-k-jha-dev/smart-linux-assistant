@@ -167,7 +167,10 @@ Suggested fix:
 - Logging & configuration: implemented via `linux_assistant.utils.logger` and `linux_assistant.config.settings`.
 - Packaging: console script entry points are declared in `pyproject.toml`.
 - AI-powered explanations: implemented — `smart-linux explain` uses the Groq API (`llama-3.3-70b-versatile`) to generate plain-language explanations of commands and error messages, via `linux_assistant.services.explainer.Explainer`. Requires a user-supplied `GROQ_API_KEY` environment variable.
-- Additional AI features (command suggestions, history analysis, documentation lookup) are planned but not yet implemented.
+- AI-powered fix suggestions: implemented — `smart-linux fix` runs a failing command and suggests a corrected version; `smart-linux run --check --suggest-fix` offers the same suggestion inline as part of normal command execution. Both use `linux_assistant.services.explainer.Explainer.suggest_fix()`.
+- AI-powered search: implemented — `smart-linux search` answers natural-language questions about Linux tasks via `linux_assistant.services.search.Searcher`.
+- Production hardening: implemented — API timeouts, retry logic, rate-limit-specific handling, input truncation, and documented OS/privacy limitations across all AI-backed commands.
+- Additional AI features (command history awareness, documentation lookup) are planned but not yet implemented.
 
 ## Known Limitations
 
