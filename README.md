@@ -90,6 +90,7 @@ smart-linux run "echo hello"
 - Options:
   - `--timeout <seconds>` — maximum seconds to allow command to run (default: 30)
   - `--check` — treat non-zero exit codes as errors and exit with that code
+  - `--suggest-fix` — if the command fails, use AI to suggest a corrected version (requires `--check`; requires `GROQ_API_KEY`, same as `explain`/`fix`/`search`)
 
 - Doctor command (checks common tools):
 
@@ -146,6 +147,18 @@ ls: cannot access 'nonexistent': No such file or directory
 ```
 
 These outputs reflect the CLI behaviour: standard output is printed for successful commands; standard error is printed for failures and, when `--check` is used, the CLI exits with the command's exit code.
+
+Failed command with an AI-suggested fix:
+
+```bash
+$ smart-linux run "gti status" --check --suggest-fix
+gti: command not found
+
+Suggested fix:
+  git status
+```
+
+`--suggest-fix` requires `--check` (fix suggestions only apply to command failures detected via `--check`); calling it without `--check` exits immediately with an error.
 
 ## Roadmap / Current Status
 

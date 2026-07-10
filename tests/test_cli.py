@@ -37,6 +37,78 @@ class TestRunCommand:
     def test_run_respects_timeout_flag(self) -> None:
         result = runner.invoke(app, ["run", "sleep 5", "--timeout", "1"])
         assert result.exit_code == 124
+    
+    def test_run_without_suggest_fix_flag_does_not_invoke_explainer(self) -> None:
+        with patch("linux_assistant.cli.main.Explainer") as MockExplainerClass:
+            result = runner.invoke(app, ["run", "ls /no-such-directory-xyz"])
+
+        MockExplainerClass.assert_not_called()
+        assert result.exit_code != 0
+
+    def test_run_suggest_fix_prints_suggestion_on_failure(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
+
+        with patch("linux_assistant.cli.main.Explainer") as MockExplainerClass:
+            mock_instance = MockExplainerClass.return_value
+            mock_instance.suggest_fix.return_value = "ls /correct-directory"
+
+            result = runner.invoke(
+                app, ["run", "ls /no-such-directory-xyz", "--check", "--suggest-fix"]
+            )
+
+        assert "ls /correct-directory" in result.output
+
+    def test_run_suggest_fix_preserves_original_exit_code(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
+
+        with patch("linux_assistant.cli.main.Explainer") as MockExplainerClass:
+            mock_instance = MockExplainerClass.return_value
+            mock_instance.suggest_fix.return_value = "ls /correct-directory"
+
+            result = runner.invoke(
+                app, ["run", "ls /no-such-directory-xyz", "--check", "--suggest-fix"]
+            )
+
+        assert result.exit_code == 2  # real `ls` failure code, unchanged by suggestion
+
+    def test_run_suggest_fix_handles_missing_api_key_gracefully(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+        result = runner.invoke(
+            app,
+            ["run", "ls /no-such-directory-xyz", "--check", "--suggest-fix"],
+            catch_exceptions=False,
+        )
+
+        assert result.exit_code == 2  # still the real exit code, not a crash
+        assert "GROQ_API_KEY" in result.output
+
+    def test_run_suggest_fix_reports_no_confident_fix(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
+
+        with patch("linux_assistant.cli.main.Explainer") as MockExplainerClass:
+            mock_instance = MockExplainerClass.return_value
+            mock_instance.suggest_fix.return_value = None
+
+            result = runner.invoke(
+                app, ["run", "ls /no-such-directory-xyz", "--check", "--suggest-fix"]
+            )
+
+        assert result.exit_code == 2
+        assert "No confident fix" in result.output
+        
+    def test_run_suggest_fix_without_check_is_rejected(self) -> None:
+        result = runner.invoke(app, ["run", "echo hello", "--suggest-fix"])
+        assert result.exit_code == 2
+        assert "--check" in result.output
         
 class TestDoctorCommand:
     """Tests for `smart-linux doctor`."""

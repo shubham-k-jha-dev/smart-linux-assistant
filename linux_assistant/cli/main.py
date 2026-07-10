@@ -33,12 +33,24 @@ def run(
     check: bool = typer.Option(
         False, "--check", help="Exit non-zero if the command itself fails."
     ),
+    suggest_fix: bool = typer.Option(
+        False, "--suggest-fix", help="If the command fails, suggest an AI-generated fix."
+    ),
 ) -> None:
     """
     Execute a shell command and display structured results.
     """
-    executor = CommandExecutor()
+    
+    if suggest_fix and not check:
+        typer.secho(
+            "Invalid usage: --suggest-fix requires --check (fix suggestions only apply to command failures detected via --check).",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2)
 
+    executor = CommandExecutor()
+    
     try:
         if check:
             result = executor.execute_checked(command, timeout=timeout)
@@ -57,6 +69,29 @@ def run(
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         if exc.result.stderr:
             typer.secho(exc.result.stderr, fg=typer.colors.YELLOW, err=True)
+
+        if suggest_fix:
+            typer.echo()
+            try:
+                explainer = Explainer()
+                suggestion = explainer.suggest_fix(command, exc.result.stderr)
+
+            except MissingAPIKeyError as fix_exc:
+                typer.secho(str(fix_exc), fg=typer.colors.RED, err=True)
+
+            except RateLimitError as fix_exc:
+                typer.secho(str(fix_exc), fg=typer.colors.YELLOW, err=True)
+
+            except ServiceError as fix_exc:
+                typer.secho(f"Could not get a fix suggestion: {fix_exc}", fg=typer.colors.RED, err=True)
+
+            else:
+                if suggestion is None:
+                    typer.secho("No confident fix available.", fg=typer.colors.YELLOW)
+                else:
+                    typer.secho("Suggested fix:", fg=typer.colors.CYAN)
+                    typer.echo(f"  {suggestion}")
+
         raise typer.Exit(code=exc.result.exit_code)
 
     except CommandExecutionError as exc:
