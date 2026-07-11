@@ -81,6 +81,12 @@ This project does not require any environment variables for its core CLI functio
 
 The project exposes the console scripts `smart-linux` and `sla` (configured in `pyproject.toml`).
 
+By default, the CLI stays quiet — internal logs are written only to the log file, not the console. Pass `--verbose` (or `-v`) before any subcommand to see detailed logs live in your terminal:
+
+```bash
+smart-linux --verbose run "echo hello"
+```
+
 - Run a shell command:
 
 ```bash

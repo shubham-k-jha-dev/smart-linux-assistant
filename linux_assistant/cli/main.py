@@ -8,7 +8,7 @@ import typer
 from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, ValidationError, MissingAPIKeyError, ServiceError, RateLimitError
 from linux_assistant.services.explainer import Explainer
 from linux_assistant.services.command_executor import CommandExecutor
-from linux_assistant.utils.logger import get_logger
+from linux_assistant.utils.logger import get_logger, set_verbose
 from linux_assistant.utils.shell import command_exists
 from linux_assistant.services.search import Searcher
 
@@ -21,10 +21,15 @@ app = typer.Typer(
 )
 
 @app.callback()
-def callback() -> None:
+def callback(
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Show detailed internal logs on the console."
+    ),
+) -> None:
     """
     Smart Linux Assistant — an AI-powered Linux productivity CLI.
     """
+    set_verbose(verbose)
 
 @app.command()
 def run(

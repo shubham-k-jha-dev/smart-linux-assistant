@@ -227,3 +227,27 @@ class TestSearchCommand:
     def test_search_rejects_empty_query(self) -> None:
         result = runner.invoke(app, ["search", ""])
         assert result.exit_code == 2
+        
+class TestVerboseLogging:
+    """Tests for the global --verbose flag and console log suppression."""
+
+    def test_run_is_quiet_by_default(self) -> None:
+        result = runner.invoke(app, ["run", "echo hello"])
+        assert result.exit_code == 0
+        assert "hello" in result.output
+
+    def test_verbose_flag_unlocks_console_handler_level(self) -> None:
+        from linux_assistant.utils.logger import _console_handlers
+        import logging
+
+        result = runner.invoke(app, ["--verbose", "run", "echo hello"])
+        assert result.exit_code == 0
+        assert all(h.level == logging.INFO for h in _console_handlers)
+
+    def test_default_state_suppresses_console_handler_level(self) -> None:
+        from linux_assistant.utils.logger import _console_handlers
+        import logging
+
+        result = runner.invoke(app, ["run", "echo hello"])
+        assert result.exit_code == 0
+        assert all(h.level > logging.INFO for h in _console_handlers)
