@@ -28,6 +28,16 @@ class RepositoryError(SmartLinuxAssistantError):
     """
 
 
+class HistoryError(RepositoryError):
+    """
+    Raised when the command history store cannot be read from,
+    written to, or cleared. Callers that record history as a
+    side-effect (rather than an explicit user request) should catch
+    this, log it, and continue — a history-recording failure must
+    never interrupt the command the user actually asked to run.
+    """
+
+
 class ServiceError(SmartLinuxAssistantError):
     """
     Raised when a business service cannot complete the requested
