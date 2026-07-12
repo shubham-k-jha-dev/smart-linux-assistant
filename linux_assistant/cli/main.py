@@ -13,6 +13,7 @@ from linux_assistant.repositories import HistoryRepository
 from linux_assistant.utils.logger import get_logger, set_verbose
 from linux_assistant.utils.shell import command_exists
 from linux_assistant.services.search import Searcher
+from linux_assistant.models.history_entry import HistoryEntry
 
 logger = get_logger(__name__)
 
@@ -314,6 +315,69 @@ def search(
         raise typer.Exit(code=1)
 
     typer.echo(result)
+
+
+history_app = typer.Typer(help="View and manage recorded command history.")
+app.add_typer(history_app, name="history")
+
+
+def _format_history_entry(entry) -> str:
+    """
+    Render a single HistoryEntry as a compact, human-readable line,
+    with a failed entry's stderr snippet shown indented beneath it.
+    """
+    symbol = "✔" if entry.succeeded else "✘"
+    timestamp = entry.executed_at.strftime("%Y-%m-%d %H:%M:%S")
+    line = f"{timestamp}  {symbol}  {entry.duration_seconds:.2f}s  {entry.command}"
+
+    if entry.failed and entry.stderr_snippet:
+        line += f"\n    └─ {entry.stderr_snippet}"
+
+    return line
+
+
+@history_app.callback(invoke_without_command=True)
+def history_default(
+    ctx: typer.Context,
+    failures_only: bool = typer.Option(
+        False, "--failures-only", help="Show only failed commands."
+    ),
+    limit: int = typer.Option(20, help="Maximum number of entries to show."),
+) -> None:
+    """
+    Show recent command history. Defaults to listing; use 'clear' to
+    wipe all recorded history.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+
+    try:
+        entries = HistoryRepository().list_recent(limit=limit, failures_only=failures_only)
+    except HistoryError as exc:
+        typer.secho(f"Could not read history: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    if not entries:
+        typer.echo("No history recorded yet.")
+        raise typer.Exit(code=0)
+
+    for entry in entries:
+        color = typer.colors.GREEN if entry.succeeded else typer.colors.RED
+        typer.secho(_format_history_entry(entry), fg=color)
+
+
+@history_app.command("clear")
+def history_clear() -> None:
+    """
+    Permanently delete all recorded command history.
+    """
+    try:
+        HistoryRepository().clear()
+    except HistoryError as exc:
+        typer.secho(f"Could not clear history: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    typer.secho("Command history cleared.", fg=typer.colors.GREEN)
 
 
 def main() -> None:

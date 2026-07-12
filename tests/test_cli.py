@@ -344,3 +344,101 @@ class TestVerboseLogging:
         result = runner.invoke(app, ["run", "echo hello"])
         assert result.exit_code == 0
         assert all(h.level > logging.INFO for h in _console_handlers)
+        
+class TestHistoryCommand:
+    """Tests for `smart-linux history`."""
+
+    def test_history_lists_entries(self, _mock_history_repository) -> None:
+        from linux_assistant.models import HistoryEntry
+        from datetime import datetime
+
+        mock_entry = HistoryEntry(
+            id=1,
+            command="echo hello",
+            exit_code=0,
+            executed_at=datetime(2026, 7, 13, 1, 0, 0),
+            duration_seconds=0.02,
+            working_directory="/home/testuser",
+            stderr_snippet=None,
+        )
+        _mock_history_repository.return_value.list_recent.return_value = [mock_entry]
+
+        result = runner.invoke(app, ["history"])
+
+        assert result.exit_code == 0
+        assert "echo hello" in result.output
+
+    def test_history_shows_stderr_snippet_for_failures(
+        self, _mock_history_repository
+    ) -> None:
+        from linux_assistant.models import HistoryEntry
+        from datetime import datetime
+
+        mock_entry = HistoryEntry(
+            id=1,
+            command="ls /nope",
+            exit_code=2,
+            executed_at=datetime(2026, 7, 13, 1, 0, 0),
+            duration_seconds=0.01,
+            working_directory="/home/testuser",
+            stderr_snippet="cannot access /nope",
+        )
+        _mock_history_repository.return_value.list_recent.return_value = [mock_entry]
+
+        result = runner.invoke(app, ["history"])
+
+        assert result.exit_code == 0
+        assert "cannot access /nope" in result.output
+
+    def test_history_shows_message_when_empty(self, _mock_history_repository) -> None:
+        _mock_history_repository.return_value.list_recent.return_value = []
+
+        result = runner.invoke(app, ["history"])
+
+        assert result.exit_code == 0
+        assert "No history recorded yet" in result.output
+
+    def test_history_passes_failures_only_flag_through(
+        self, _mock_history_repository
+    ) -> None:
+        _mock_history_repository.return_value.list_recent.return_value = []
+
+        runner.invoke(app, ["history", "--failures-only"])
+
+        call_kwargs = _mock_history_repository.return_value.list_recent.call_args.kwargs
+        assert call_kwargs["failures_only"] is True
+
+    def test_history_handles_read_failure_gracefully(
+        self, _mock_history_repository
+    ) -> None:
+        from linux_assistant.exceptions import HistoryError
+
+        _mock_history_repository.return_value.list_recent.side_effect = HistoryError(
+            "db locked"
+        )
+
+        result = runner.invoke(app, ["history"], catch_exceptions=False)
+
+        assert result.exit_code == 1
+        assert "Could not read history" in result.output
+
+    def test_history_clear_wipes_and_confirms(self, _mock_history_repository) -> None:
+        result = runner.invoke(app, ["history", "clear"])
+
+        assert result.exit_code == 0
+        _mock_history_repository.return_value.clear.assert_called_once()
+        assert "cleared" in result.output.lower()
+
+    def test_history_clear_handles_failure_gracefully(
+        self, _mock_history_repository
+    ) -> None:
+        from linux_assistant.exceptions import HistoryError
+
+        _mock_history_repository.return_value.clear.side_effect = HistoryError(
+            "permission denied"
+        )
+
+        result = runner.invoke(app, ["history", "clear"], catch_exceptions=False)
+
+        assert result.exit_code == 1
+        assert "Could not clear history" in result.output

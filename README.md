@@ -136,6 +136,16 @@ smart-linux search "find the 10 largest files in the current directory"
 
 - This returns a concrete command and brief explanation for the requested task. Requires the same `GROQ_API_KEY` environment variable as the `explain` command.
 
+- View or manage recorded command history:
+
+```bash
+smart-linux history
+smart-linux history --failures-only
+smart-linux history clear
+```
+
+  Every `run` invocation (success or failure) is recorded locally in a SQLite database, storing the command text, exit code, duration, working directory, and — only for failed commands — a truncated snippet of stderr. `stdout` is never stored. History is capped at 5,000 entries (oldest entries are pruned automatically) and can be disabled entirely by setting `SMART_LINUX_NO_HISTORY=1`.
+
 ### Example output
 
 Successful command:
@@ -176,7 +186,8 @@ Suggested fix:
 - AI-powered fix suggestions: implemented — `smart-linux fix` runs a failing command and suggests a corrected version; `smart-linux run --check --suggest-fix` offers the same suggestion inline as part of normal command execution. Both use `linux_assistant.services.explainer.Explainer.suggest_fix()`.
 - AI-powered search: implemented — `smart-linux search` answers natural-language questions about Linux tasks via `linux_assistant.services.search.Searcher`.
 - Production hardening: implemented — API timeouts, retry logic, rate-limit-specific handling, input truncation, and documented OS/privacy limitations across all AI-backed commands.
-- Additional AI features (command history awareness, documentation lookup) are planned but not yet implemented.
+- Command history: implemented — `smart-linux run` records every invocation locally via `linux_assistant.repositories.history_repository.HistoryRepository` (SQLite-backed, FIFO-capped at 5,000 rows). View with `smart-linux history` (supports `--failures-only`), erase with `smart-linux history clear`, or disable entirely via `SMART_LINUX_NO_HISTORY=1`. AI-powered use of this history (e.g. `explain`/`fix` referencing past failures) is planned for a future version but not yet implemented.
+- Additional AI features (documentation lookup) are planned but not yet implemented.
 
 ## Known Limitations
 
@@ -185,6 +196,8 @@ Suggested fix:
 ## Privacy Note
 
 The `explain`, `fix`, and `search` commands send the command text, error output, or your query to Groq's API for processing. Avoid running these commands on text that contains secrets, passwords, or sensitive data, since that content leaves your machine.
+
+Separately, `smart-linux run` records a local history of command invocations (command text, exit code, duration, working directory, and — for failures only — a truncated stderr snippet) in a SQLite database on your machine. This data never leaves your machine and is not sent to any API. `stdout` is never recorded. To disable history recording entirely, set `SMART_LINUX_NO_HISTORY=1`. To view or erase recorded history, use `smart-linux history` and `smart-linux history clear`.
 
 ## Install from PyPI
 
