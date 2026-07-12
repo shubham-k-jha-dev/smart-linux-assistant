@@ -3,13 +3,25 @@ Tests for the command-line interface.
 """
 
 from __future__ import annotations
+import os
+import pytest
 from typer.testing import CliRunner
 from linux_assistant.cli.main import app
 from unittest.mock import MagicMock, patch
 
 runner = CliRunner()
 
-
+@pytest.fixture(autouse=True)
+def _mock_history_repository():
+    """
+    Prevent every CLI test in this file from writing to the real,
+    on-disk history database. Autouse means this applies to every
+    test automatically, with no per-test opt-in required.
+    """
+    with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
+        yield MockHistoryRepo
+        
+        
 class TestRunCommand:
     """Tests for `smart-linux run`."""
 
@@ -109,6 +121,87 @@ class TestRunCommand:
         result = runner.invoke(app, ["run", "echo hello", "--suggest-fix"])
         assert result.exit_code == 2
         assert "--check" in result.output
+        
+    def test_run_records_history_on_success(self) -> None:
+        with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
+            mock_instance = MockHistoryRepo.return_value
+            result = runner.invoke(app, ["run", "echo hello"])
+
+        assert result.exit_code == 0
+        mock_instance.record.assert_called_once()
+        call_kwargs = mock_instance.record.call_args.kwargs
+        assert call_kwargs["command"] == "echo hello"
+        assert call_kwargs["exit_code"] == 0
+
+    def test_run_records_history_on_failure(self) -> None:
+        with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
+            mock_instance = MockHistoryRepo.return_value
+            result = runner.invoke(app, ["run", "ls /no-such-directory-xyz", "--check"])
+
+        assert result.exit_code == 2
+        mock_instance.record.assert_called_once()
+        call_kwargs = mock_instance.record.call_args.kwargs
+        assert call_kwargs["exit_code"] == 2
+
+    def test_run_respects_history_opt_out_env_var(
+        self, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.setenv("SMART_LINUX_NO_HISTORY", "1")
+
+        with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
+            result = runner.invoke(app, ["run", "echo hello"])
+
+        assert result.exit_code == 0
+        MockHistoryRepo.assert_not_called()
+
+    def test_run_does_not_crash_when_history_recording_fails(self) -> None:
+        with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
+            from linux_assistant.exceptions import HistoryError
+
+            MockHistoryRepo.return_value.record.side_effect = HistoryError("disk full")
+            result = runner.invoke(app, ["run", "echo hello"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        assert "hello" in result.output
+        
+    def test_run_records_history_on_success(self, _mock_history_repository) -> None:
+        mock_instance = _mock_history_repository.return_value
+        result = runner.invoke(app, ["run", "echo hello"])
+
+        assert result.exit_code == 0
+        mock_instance.record.assert_called_once()
+        call_kwargs = mock_instance.record.call_args.kwargs
+        assert call_kwargs["command"] == "echo hello"
+        assert call_kwargs["exit_code"] == 0
+
+    def test_run_records_history_on_failure(self, _mock_history_repository) -> None:
+        mock_instance = _mock_history_repository.return_value
+        result = runner.invoke(app, ["run", "ls /no-such-directory-xyz", "--check"])
+
+        assert result.exit_code == 2
+        mock_instance.record.assert_called_once()
+        call_kwargs = mock_instance.record.call_args.kwargs
+        assert call_kwargs["exit_code"] == 2
+
+    def test_run_respects_history_opt_out_env_var(
+        self, _mock_history_repository, monkeypatch: "pytest.MonkeyPatch"
+    ) -> None:
+        monkeypatch.setenv("SMART_LINUX_NO_HISTORY", "1")
+        result = runner.invoke(app, ["run", "echo hello"])
+
+        assert result.exit_code == 0
+        _mock_history_repository.assert_not_called()
+
+    def test_run_does_not_crash_when_history_recording_fails(
+        self, _mock_history_repository
+    ) -> None:
+        from linux_assistant.exceptions import HistoryError
+
+        _mock_history_repository.return_value.record.side_effect = HistoryError("disk full")
+        result = runner.invoke(app, ["run", "echo hello"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        assert "hello" in result.output
         
 class TestDoctorCommand:
     """Tests for `smart-linux doctor`."""

@@ -7,15 +7,19 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-
 from linux_assistant.config.settings import settings
 from linux_assistant.exceptions import HistoryError
 from linux_assistant.models import HistoryEntry
 
-# Maximum characters of stderr to retain for a failed command.
+# Maximum characters of stderr to retain for a failed command. Errors
+# typically surface at the end of their output (e.g. the final lines
+# of a stack trace), so the tail is kept rather than the head.
 HISTORY_STDERR_SNIPPET_CHARS = 1000
 
-# This bounds the database's size indefinitely without a background job or time-based expiry, which would be unreliable for sporadic CLI use.
+# Hard cap on the number of rows retained in the history table. Once
+# exceeded, the oldest rows are pruned on every write. This bounds
+# the database's size indefinitely without a background job or
+# time-based expiry, which would be unreliable for sporadic CLI use.
 MAX_HISTORY_ROWS = 5000
 
 HISTORY_DB_FILE = settings.data_directory / "history.db"
@@ -54,6 +58,8 @@ class HistoryRepository:
                     command TEXT NOT NULL,
                     exit_code INTEGER NOT NULL,
                     executed_at TEXT NOT NULL,
+                    duration_seconds REAL NOT NULL,
+                    working_directory TEXT NOT NULL,
                     stderr_snippet TEXT
                 )
                 """
@@ -62,10 +68,27 @@ class HistoryRepository:
         except sqlite3.Error as exc:
             raise HistoryError(f"Could not open history database: {exc}") from exc
 
-    def record(self, *, command: str, exit_code: int, stderr: str) -> None:
+    def record(
+        self,
+        *,
+        command: str,
+        exit_code: int,
+        duration_seconds: float,
+        working_directory: str,
+        stderr: str,
+    ) -> None:
         """
         Record a single command invocation, then prune the oldest
         rows beyond MAX_HISTORY_ROWS.
+
+        Args:
+            command: The exact command that was executed.
+            exit_code: The command's exit status.
+            duration_seconds: Time taken to execute the command.
+            working_directory: Absolute path the command was run from.
+            stderr: The command's raw stderr output. Only stored
+                (truncated) when exit_code is non-zero; ignored
+                otherwise.
         """
         stderr_snippet = _truncate_stderr(stderr) if exit_code != 0 and stderr else None
         executed_at = datetime.now(timezone.utc).isoformat()
@@ -74,10 +97,20 @@ class HistoryRepository:
             with self._connect() as connection:
                 connection.execute(
                     """
-                    INSERT INTO history (command, exit_code, executed_at, stderr_snippet)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO history (
+                        command, exit_code, executed_at, duration_seconds,
+                        working_directory, stderr_snippet
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (command, exit_code, executed_at, stderr_snippet),
+                    (
+                        command,
+                        exit_code,
+                        executed_at,
+                        duration_seconds,
+                        working_directory,
+                        stderr_snippet,
+                    ),
                 )
                 connection.execute(
                     """
@@ -102,7 +135,10 @@ class HistoryRepository:
             failures_only: If True, only include entries with a
                 non-zero exit code.
         """
-        query = "SELECT id, command, exit_code, executed_at, stderr_snippet FROM history"
+        query = (
+            "SELECT id, command, exit_code, executed_at, duration_seconds, "
+            "working_directory, stderr_snippet FROM history"
+        )
         if failures_only:
             query += " WHERE exit_code != 0"
         query += " ORDER BY id DESC LIMIT ?"
@@ -119,7 +155,9 @@ class HistoryRepository:
                 command=row[1],
                 exit_code=row[2],
                 executed_at=datetime.fromisoformat(row[3]),
-                stderr_snippet=row[4],
+                duration_seconds=row[4],
+                working_directory=row[5],
+                stderr_snippet=row[6],
             )
             for row in rows
         ]

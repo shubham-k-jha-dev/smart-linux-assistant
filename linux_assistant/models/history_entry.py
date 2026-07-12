@@ -27,6 +27,12 @@ class HistoryEntry:
         executed_at:
             Timestamp indicating when the command finished executing.
 
+        duration_seconds:
+            Time taken to execute the command, in seconds.
+
+        working_directory:
+            Absolute path of the directory the command was run from.
+
         stderr_snippet:
             A truncated tail of the command's stderr output, captured
             only when the command failed (exit_code != 0). None when
@@ -37,7 +43,9 @@ class HistoryEntry:
     command: str
     exit_code: int
     executed_at: datetime
-    stderr_snippet: str | None
+    duration_seconds: float
+    working_directory: str
+    stderr_snippet: str | None = None
 
     @property
     def succeeded(self) -> bool:

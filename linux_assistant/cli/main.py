@@ -3,16 +3,45 @@ Command-line interface for the Smart Linux Assistant.
 """
 
 from __future__ import annotations
+import os
 import sys
 import typer
-from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, ValidationError, MissingAPIKeyError, ServiceError, RateLimitError
+from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, HistoryError, ValidationError, MissingAPIKeyError, ServiceError, RateLimitError
 from linux_assistant.services.explainer import Explainer
 from linux_assistant.services.command_executor import CommandExecutor
+from linux_assistant.repositories import HistoryRepository
 from linux_assistant.utils.logger import get_logger, set_verbose
 from linux_assistant.utils.shell import command_exists
 from linux_assistant.services.search import Searcher
 
 logger = get_logger(__name__)
+
+HISTORY_OPT_OUT = "SMART_LINUX_NO_HISTORY"
+
+
+def _record_history(
+    *, command: str, exit_code: int, duration_seconds: float, stderr: str
+) -> None:
+    """
+    Record a completed command invocation to the history store, as a
+    best-effort side-effect. Respects SMART_LINUX_NO_HISTORY as an
+    opt-out. Any failure to record is logged and silently swallowed —
+    a broken history store must never interrupt the command the user
+    actually asked to run.
+    """
+    if os.environ.get(HISTORY_OPT_OUT) == "1":
+        return
+
+    try:
+        HistoryRepository().record(
+            command=command,
+            exit_code=exit_code,
+            duration_seconds=duration_seconds,
+            working_directory=os.getcwd(),
+            stderr=stderr,
+        )
+    except HistoryError as exc:
+        logger.warning(f"Could not record command history: {exc}")
 
 app = typer.Typer(
     name="smart-linux",
@@ -75,6 +104,13 @@ def run(
         if exc.result.stderr:
             typer.secho(exc.result.stderr, fg=typer.colors.YELLOW, err=True)
 
+        _record_history(
+            command=command,
+            exit_code=exc.result.exit_code,
+            duration_seconds=exc.result.duration_seconds,
+            stderr=exc.result.stderr,
+        )
+
         if suggest_fix:
             typer.echo()
             try:
@@ -102,6 +138,13 @@ def run(
     except CommandExecutionError as exc:
         typer.secho(f"Execution error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
+
+    _record_history(
+        command=command,
+        exit_code=result.exit_code,
+        duration_seconds=result.duration_seconds,
+        stderr=result.stderr,
+    )
 
     if result.stdout:
         typer.echo(result.stdout)

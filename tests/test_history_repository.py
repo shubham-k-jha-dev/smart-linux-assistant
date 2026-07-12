@@ -4,7 +4,6 @@ Tests for the command history repository.
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -15,6 +14,8 @@ from linux_assistant.repositories.history_repository import (
     HistoryRepository,
     MAX_HISTORY_ROWS,
 )
+
+TEST_CWD = "/home/testuser/project"
 
 
 @pytest.fixture
@@ -28,18 +29,32 @@ class TestRecord:
     """Tests for HistoryRepository.record()."""
 
     def test_record_and_list_round_trip(self, repo: HistoryRepository) -> None:
-        repo.record(command="echo hello", exit_code=0, stderr="")
+        repo.record(
+            command="echo hello",
+            exit_code=0,
+            duration_seconds=0.05,
+            working_directory=TEST_CWD,
+            stderr="",
+        )
         entries = repo.list_recent()
 
         assert len(entries) == 1
         assert entries[0].command == "echo hello"
         assert entries[0].exit_code == 0
         assert entries[0].succeeded
+        assert entries[0].duration_seconds == 0.05
+        assert entries[0].working_directory == TEST_CWD
 
     def test_successful_command_does_not_store_stderr(
         self, repo: HistoryRepository
     ) -> None:
-        repo.record(command="echo hello", exit_code=0, stderr="")
+        repo.record(
+            command="echo hello",
+            exit_code=0,
+            duration_seconds=0.05,
+            working_directory=TEST_CWD,
+            stderr="",
+        )
         entries = repo.list_recent()
 
         assert entries[0].stderr_snippet is None
@@ -47,7 +62,13 @@ class TestRecord:
     def test_failed_command_stores_stderr_snippet(
         self, repo: HistoryRepository
     ) -> None:
-        repo.record(command="ls /nope", exit_code=2, stderr="cannot access /nope")
+        repo.record(
+            command="ls /nope",
+            exit_code=2,
+            duration_seconds=0.02,
+            working_directory=TEST_CWD,
+            stderr="cannot access /nope",
+        )
         entries = repo.list_recent()
 
         assert entries[0].failed
@@ -57,7 +78,13 @@ class TestRecord:
         self, repo: HistoryRepository
     ) -> None:
         long_stderr = "x" * (HISTORY_STDERR_SNIPPET_CHARS + 500)
-        repo.record(command="some failing command", exit_code=1, stderr=long_stderr)
+        repo.record(
+            command="some failing command",
+            exit_code=1,
+            duration_seconds=0.1,
+            working_directory=TEST_CWD,
+            stderr=long_stderr,
+        )
         entries = repo.list_recent()
 
         assert entries[0].stderr_snippet is not None
@@ -78,8 +105,20 @@ class TestListRecent:
     """Tests for HistoryRepository.list_recent()."""
 
     def test_returns_newest_first(self, repo: HistoryRepository) -> None:
-        repo.record(command="first", exit_code=0, stderr="")
-        repo.record(command="second", exit_code=0, stderr="")
+        repo.record(
+            command="first",
+            exit_code=0,
+            duration_seconds=0.01,
+            working_directory=TEST_CWD,
+            stderr="",
+        )
+        repo.record(
+            command="second",
+            exit_code=0,
+            duration_seconds=0.01,
+            working_directory=TEST_CWD,
+            stderr="",
+        )
 
         entries = repo.list_recent()
 
@@ -88,7 +127,13 @@ class TestListRecent:
 
     def test_respects_limit(self, repo: HistoryRepository) -> None:
         for i in range(5):
-            repo.record(command=f"command {i}", exit_code=0, stderr="")
+            repo.record(
+                command=f"command {i}",
+                exit_code=0,
+                duration_seconds=0.01,
+                working_directory=TEST_CWD,
+                stderr="",
+            )
 
         entries = repo.list_recent(limit=2)
 
@@ -97,8 +142,20 @@ class TestListRecent:
     def test_failures_only_filters_successful_commands(
         self, repo: HistoryRepository
     ) -> None:
-        repo.record(command="good", exit_code=0, stderr="")
-        repo.record(command="bad", exit_code=1, stderr="oops")
+        repo.record(
+            command="good",
+            exit_code=0,
+            duration_seconds=0.01,
+            working_directory=TEST_CWD,
+            stderr="",
+        )
+        repo.record(
+            command="bad",
+            exit_code=1,
+            duration_seconds=0.01,
+            working_directory=TEST_CWD,
+            stderr="oops",
+        )
 
         entries = repo.list_recent(failures_only=True)
 
@@ -116,13 +173,19 @@ class TestPruning:
         self, repo: HistoryRepository, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import linux_assistant.repositories.history_repository as history_module
-        
+
         # This safely changes the value to 3 and auto-restores it later
         monkeypatch.setattr(history_module, "MAX_HISTORY_ROWS", 3)
 
         for i in range(5):
-            repo.record(command=f"command {i}", exit_code=0, stderr="")
-            
+            repo.record(
+                command=f"command {i}",
+                exit_code=0,
+                duration_seconds=0.01,
+                working_directory=TEST_CWD,
+                stderr="",
+            )
+
         entries = repo.list_recent(limit=10)
         commands = [entry.command for entry in entries]
 
@@ -133,12 +196,25 @@ class TestPruning:
         assert "command 0" not in commands
         assert "command 1" not in commands
 
+
 class TestClear:
     """Tests for HistoryRepository.clear()."""
 
     def test_clear_removes_all_entries(self, repo: HistoryRepository) -> None:
-        repo.record(command="one", exit_code=0, stderr="")
-        repo.record(command="two", exit_code=0, stderr="")
+        repo.record(
+            command="one",
+            exit_code=0,
+            duration_seconds=0.01,
+            working_directory=TEST_CWD,
+            stderr="",
+        )
+        repo.record(
+            command="two",
+            exit_code=0,
+            duration_seconds=0.01,
+            working_directory=TEST_CWD,
+            stderr="",
+        )
 
         repo.clear()
 
