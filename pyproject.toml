@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smart-linux-assistant"
-version = "0.5.0"
+version = "0.6.0"
 description = "An AI-powered Linux productivity assistant for command analysis, troubleshooting, and knowledge management."
 readme = "README.md"
 requires-python = ">=3.11"
