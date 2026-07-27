@@ -14,6 +14,7 @@ from linux_assistant.utils.logger import get_logger, set_verbose
 from linux_assistant.utils.shell import command_exists
 from linux_assistant.services.search import Searcher
 from linux_assistant.models.history_entry import HistoryEntry
+from linux_assistant.core.safety import is_dangerous_command
 
 logger = get_logger(__name__)
 
@@ -133,6 +134,11 @@ def run(
                 else:
                     typer.secho("Suggested fix:", fg=typer.colors.CYAN)
                     typer.echo(f"  {suggestion}")
+                    # Capture or pass through, but keep original exit code
+                    try:
+                        _prompt_and_execute(suggestion)
+                    except typer.Exit:
+                        pass
 
         raise typer.Exit(code=exc.result.exit_code)
 
@@ -230,7 +236,7 @@ def fix(
     timeout: int = typer.Option(30, help="Timeout in seconds."),
 ) -> None:
     """
-    Run a command, and if it fails, suggest a corrected version.
+    Run a command, and if it fails, suggest a corrected version and prompt for execution.
     """
     executor = CommandExecutor()
 
@@ -281,8 +287,8 @@ def fix(
     typer.secho("Suggested fix:", fg=typer.colors.CYAN)
     typer.echo(f"  {suggestion}")
     typer.echo()
-    typer.echo(f'Run it manually, or try: smart-linux run "{suggestion}"')
 
+    _prompt_and_execute(suggestion)
     raise typer.Exit(code=1)
 
 @app.command()
@@ -292,7 +298,7 @@ def search(
     ),
 ) -> None:
     """
-    Search for how to accomplish a Linux task in plain language.
+    Search for how to accomplish a Linux task in plain language and prompt for execution.
     """
     if not query.strip():
         typer.secho("Invalid input: Search query cannot be empty.", fg=typer.colors.RED, err=True)
@@ -315,6 +321,9 @@ def search(
         raise typer.Exit(code=1)
 
     typer.echo(result)
+    
+    if hasattr(result, "command") and result.command:
+        _prompt_and_execute(result.command)
 
 
 history_app = typer.Typer(help="View and manage recorded command history.")
@@ -378,6 +387,45 @@ def history_clear() -> None:
         raise typer.Exit(code=1)
 
     typer.secho("Command history cleared.", fg=typer.colors.GREEN)
+    
+def _prompt_and_execute(command: str) -> None:
+    """
+    Helper to safely prompt the user and execute an AI-suggested command.
+    Applies safety guardrails to destructive commands.
+    """
+    # If running inside a non-interactive test runner (like CliRunner), 
+    # skip the interactive prompt to preserve the parent command's exit code flow.
+    if not sys.stdin.isatty():
+        return
+
+    try:
+        if is_dangerous_command(command):
+            typer.secho(
+                "\n[WARNING] This command contains potentially destructive operations.", 
+                fg=typer.colors.RED, bold=True
+            )
+            if not typer.confirm("Are you ABSOLUTELY sure you want to execute this?"):
+                typer.secho("Execution cancelled.", fg=typer.colors.YELLOW)
+                return
+        else:
+            if not typer.confirm("\nExecute this command now?"):
+                typer.secho("Execution cancelled.", fg=typer.colors.YELLOW)
+                return
+    except (SystemExit, typer.Exit):
+        typer.secho("Execution cancelled.", fg=typer.colors.YELLOW)
+        return
+
+    typer.secho(f"Executing: {command}\n", fg=typer.colors.CYAN)
+    
+    executor = CommandExecutor()
+    result = executor.execute(command)
+    
+    if result.succeeded:
+        if result.stdout:
+            typer.echo(result.stdout)
+    else:
+        if result.stderr:
+            typer.secho(result.stderr, fg=typer.colors.RED)
 
 
 def main() -> None:

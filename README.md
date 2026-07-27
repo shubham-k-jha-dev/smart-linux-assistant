@@ -2,26 +2,22 @@
 
 Smart Linux Assistant is an AI-powered Linux operations assistant that understands natural language, safely executes shell commands, retrieves Linux knowledge, explains errors, and assists users with troubleshooting. The current version implements the core command execution engine and foundational architecture for future AI capabilities.
 
-![Python](https://img.shields.io/badge/python-3.11%2B-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
-[![CI](https://github.com/shubham-k-jha-dev/smart-linux-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/shubham-k-jha-dev/smart-linux-assistant/actions/workflows/ci.yml)
-
 ## Project Overview
 
 Smart Linux Assistant is a command-line utility that executes shell commands and returns structured outcomes. The tool captures the command, exit code, stdout, stderr, execution timestamp, and duration to make downstream automation and logging straightforward.
 
 ## System Architecture
 
-- CLI (`linux_assistant.cli.main`) accepts user commands and options and delegates execution to `CommandExecutor`.
-- `CommandExecutor` runs shell commands using `subprocess.run` and returns a `CommandResult` dataclass describing the outcome.
-- Centralized logging is provided by `linux_assistant.utils.logger`, writing to `logs/smart_linux_assistant.log` with rotation.
-- Runtime paths and directories are managed by `linux_assistant.config.settings` and can be initialized with `initialize_app_filesystem()`.
+* CLI (`linux_assistant.cli.main`) accepts user commands and options and delegates execution to `CommandExecutor`.
+* `CommandExecutor` runs shell commands using `subprocess.run` and returns a `CommandResult` dataclass describing the outcome.
+* Centralized logging is provided by `linux_assistant.utils.logger`, writing to `logs/smart_linux_assistant.log` with rotation.
+* Runtime paths and directories are managed by `linux_assistant.config.settings` and can be initialized with `initialize_app_filesystem()`.
 
 ## Tech Stack
 
-- Python 3.11+
-- Typer (CLI)
-- Standard library: `subprocess`, `logging`, `shutil`, `dataclasses`, `pathlib`, `datetime`
+* Python 3.11+
+* Typer (CLI)
+* Standard library: `subprocess`, `logging`, `shutil`, `dataclasses`, `pathlib`, `datetime`
 
 ## Prerequisites
 
@@ -74,7 +70,7 @@ initialize_app_filesystem()
 This project does not require any environment variables for its core CLI functionality. The repository includes an empty `.env.example` placeholder.
 
 | Variable | Description | Example |
-|----------|-------------|---------|
+| --- | --- | --- |
 | (none) | No required environment variables for CLI execution | - |
 
 ## Usage / API Reference
@@ -87,56 +83,57 @@ By default, the CLI stays quiet — internal logs are written only to the log fi
 smart-linux --verbose run "echo hello"
 ```
 
-- Run a shell command:
+* Run a shell command:
 
 ```bash
 smart-linux run "echo hello"
 ```
 
-- Options:
-  - `--timeout <seconds>` — maximum seconds to allow command to run (default: 30)
-  - `--check` — treat non-zero exit codes as errors and exit with that code
-  - `--suggest-fix` — if the command fails, use AI to suggest a corrected version (requires `--check`; requires `GROQ_API_KEY`, same as `explain`/`fix`/`search`)
+* Options:
+* `--timeout <seconds>` — maximum seconds to allow command to run (default: 30)
+* `--check` — treat non-zero exit codes as errors and exit with that code
+* `--suggest-fix` — if the command fails, use AI to suggest a corrected version (requires `--check`; requires `GROQ_API_KEY`, same as `explain`/`fix`/`search`)
 
-- Doctor command (checks common tools):
+
+* Doctor command (checks common tools):
 
 ```bash
 smart-linux doctor
 ```
-- Get an AI-powered explanation of a command or error message:
+
+* Get an AI-powered explanation of a command or error message:
 
 ```bash
 smart-linux explain "permission denied when running ./script.sh"
 ```
 
-  Requires a free Groq API key set as an environment variable:
+Requires a free Groq API key set as an environment variable:
 
 ```bash
 export GROQ_API_KEY="your-key-here"
 ```
 
-  Get a free key at [console.groq.com](https://console.groq.com).
+Get a free key at [console.groq.com](https://console.groq.com).
 
-- Fix a failing command:
+* Fix a failing command:
 
 ```bash
 smart-linux fix "ls /nonexistent"
 ```
 
-- Options:
-  - `--timeout <seconds>` — maximum seconds to allow the command to run (default: 30)
+* Options:
+* `--timeout <seconds>` — maximum seconds to allow the command to run (default: 30)
 
-- This runs the command and, if it fails, uses the AI to suggest a corrected version. Requires the same `GROQ_API_KEY` environment variable as the `explain` command.
 
-- Search for a Linux task in plain language:
+* This runs the command and, if it fails, uses the AI to suggest a corrected version, then **interactively prompts you to execute the fix safely**. Requires the same `GROQ_API_KEY` environment variable as the `explain` command.
+* Search for a Linux task in plain language:
 
 ```bash
 smart-linux search "find the 10 largest files in the current directory"
 ```
 
-- This returns a concrete command and brief explanation for the requested task. Requires the same `GROQ_API_KEY` environment variable as the `explain` command.
-
-- View or manage recorded command history:
+* This returns a concrete command and brief explanation for the requested task, and **interactively prompts you to execute the command directly**. Requires the same `GROQ_API_KEY` environment variable as the `explain` command.
+* View or manage recorded command history:
 
 ```bash
 smart-linux history
@@ -144,7 +141,7 @@ smart-linux history --failures-only
 smart-linux history clear
 ```
 
-  Every `run` invocation (success or failure) is recorded locally in a SQLite database, storing the command text, exit code, duration, working directory, and — only for failed commands — a truncated snippet of stderr. `stdout` is never stored. History is capped at 5,000 entries (oldest entries are pruned automatically) and can be disabled entirely by setting `SMART_LINUX_NO_HISTORY=1`.
+Every `run` invocation (success or failure) is recorded locally in a SQLite database, storing the command text, exit code, duration, working directory, and — only for failed commands — a truncated snippet of stderr. `stdout` is never stored. History is capped at 5,000 entries (oldest entries are pruned automatically) and can be disabled entirely by setting `SMART_LINUX_NO_HISTORY=1`.
 
 ### Example output
 
@@ -178,20 +175,21 @@ Suggested fix:
 
 ## Roadmap / Current Status
 
-- Core CLI: implemented — `run` and `doctor` commands are provided in `linux_assistant.cli.main`.
-- Command execution: implemented using `linux_assistant.services.command_executor.CommandExecutor` which returns `CommandResult` instances.
-- Logging & configuration: implemented via `linux_assistant.utils.logger` and `linux_assistant.config.settings`.
-- Packaging: console script entry points are declared in `pyproject.toml`.
-- AI-powered explanations: implemented — `smart-linux explain` uses the Groq API (`llama-3.3-70b-versatile`) to generate plain-language explanations of commands and error messages, via `linux_assistant.services.explainer.Explainer`. Requires a user-supplied `GROQ_API_KEY` environment variable.
-- AI-powered fix suggestions: implemented — `smart-linux fix` runs a failing command and suggests a corrected version; `smart-linux run --check --suggest-fix` offers the same suggestion inline as part of normal command execution. Both use `linux_assistant.services.explainer.Explainer.suggest_fix()`.
-- AI-powered search: implemented — `smart-linux search` answers natural-language questions about Linux tasks via `linux_assistant.services.search.Searcher`.
-- Production hardening: implemented — API timeouts, retry logic, rate-limit-specific handling, input truncation, regex-based secret redaction (scrubbing passwords and API keys before LLM transit), and documented OS/privacy limitations across all AI-backed commands.
-- Command history: implemented — `smart-linux run` records every invocation locally via `linux_assistant.repositories.history_repository.HistoryRepository` (SQLite-backed, FIFO-capped at 5,000 rows). View with `smart-linux history` (supports `--failures-only`), erase with `smart-linux history clear`, or disable entirely via `SMART_LINUX_NO_HISTORY=1`. AI Context Injection is implemented: `explain` and `fix` commands dynamically fetch the last 5 chronological commands to give the LLM workflow awareness, protected by graceful degradation if the database is locked.
-- Additional AI features (documentation lookup) are planned but not yet implemented.
+* Core CLI: implemented — `run` and `doctor` commands are provided in `linux_assistant.cli.main`.
+* Command execution: implemented using `linux_assistant.services.command_executor.CommandExecutor` which returns `CommandResult` instances.
+* Logging & configuration: implemented via `linux_assistant.utils.logger` and `linux_assistant.config.settings`.
+* Packaging: console script entry points are declared in `pyproject.toml`.
+* AI-powered explanations: implemented — `smart-linux explain` uses the Groq API (`llama-3.3-70b-versatile`) to generate plain-language explanations of commands and error messages, via `linux_assistant.services.explainer.Explainer`. Requires a user-supplied `GROQ_API_KEY` environment variable.
+* AI-powered fix suggestions: implemented — `smart-linux fix` runs a failing command and suggests a corrected version; `smart-linux run --check --suggest-fix` offers the same suggestion inline as part of normal command execution. Both use `linux_assistant.services.explainer.Explainer.suggest_fix()`.
+* AI-powered search: implemented — `smart-linux search` answers natural-language questions about Linux tasks via `linux_assistant.services.search.Searcher`.
+* Production hardening & Safety: implemented — API timeouts, retry logic, rate-limit-specific handling, input truncation, regex-based secret redaction, and a **Heuristic Safety Interceptor (`linux_assistant.core.safety`)** to detect and block destructive commands (like `rm -rf`, `mkfs`, `dd`) before execution.
+* Agentic Execution: implemented — `smart-linux fix` and `smart-linux search` now feature interactive confirmation prompts (`_prompt_and_execute`), allowing users to review AI-suggested commands and execute them instantly with safety guardrails.
+* Command history: implemented — `smart-linux run` records every invocation locally via `linux_assistant.repositories.history_repository.HistoryRepository` (SQLite-backed, FIFO-capped at 5,000 rows). View with `smart-linux history` (supports `--failures-only`), erase with `smart-linux history clear`, or disable entirely via `SMART_LINUX_NO_HISTORY=1`. AI Context Injection is implemented: `explain` and `fix` commands dynamically fetch the last 5 chronological commands to give the LLM workflow awareness, protected by graceful degradation if the database is locked.
+* Additional AI features (documentation lookup) are planned but not yet implemented.
 
 ## Known Limitations
 
-- Tested and verified on Linux (native and WSL). Not yet tested on macOS or native Windows Python — behavior on those platforms is currently unverified, though the codebase avoids Linux-only APIs where possible.
+* Tested and verified on Linux (native and WSL). Not yet tested on macOS or native Windows Python — behavior on those platforms is currently unverified, though the codebase avoids Linux-only APIs where possible.
 
 ## Privacy Note
 
@@ -223,5 +221,5 @@ MIT License — see `LICENSE`.
 
 ## Contributing
 
-- Run tests with `pytest` before opening a pull request.
-- Follow standard Python packaging best practices.
+* Run tests with `pytest` before opening a pull request.
+* Follow standard Python packaging best practices.
