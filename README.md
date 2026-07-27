@@ -185,8 +185,8 @@ Suggested fix:
 - AI-powered explanations: implemented — `smart-linux explain` uses the Groq API (`llama-3.3-70b-versatile`) to generate plain-language explanations of commands and error messages, via `linux_assistant.services.explainer.Explainer`. Requires a user-supplied `GROQ_API_KEY` environment variable.
 - AI-powered fix suggestions: implemented — `smart-linux fix` runs a failing command and suggests a corrected version; `smart-linux run --check --suggest-fix` offers the same suggestion inline as part of normal command execution. Both use `linux_assistant.services.explainer.Explainer.suggest_fix()`.
 - AI-powered search: implemented — `smart-linux search` answers natural-language questions about Linux tasks via `linux_assistant.services.search.Searcher`.
-- Production hardening: implemented — API timeouts, retry logic, rate-limit-specific handling, input truncation, and documented OS/privacy limitations across all AI-backed commands.
-- Command history: implemented — `smart-linux run` records every invocation locally via `linux_assistant.repositories.history_repository.HistoryRepository` (SQLite-backed, FIFO-capped at 5,000 rows). View with `smart-linux history` (supports `--failures-only`), erase with `smart-linux history clear`, or disable entirely via `SMART_LINUX_NO_HISTORY=1`. AI-powered use of this history (e.g. `explain`/`fix` referencing past failures) is planned for a future version but not yet implemented.
+- Production hardening: implemented — API timeouts, retry logic, rate-limit-specific handling, input truncation, regex-based secret redaction (scrubbing passwords and API keys before LLM transit), and documented OS/privacy limitations across all AI-backed commands.
+- Command history: implemented — `smart-linux run` records every invocation locally via `linux_assistant.repositories.history_repository.HistoryRepository` (SQLite-backed, FIFO-capped at 5,000 rows). View with `smart-linux history` (supports `--failures-only`), erase with `smart-linux history clear`, or disable entirely via `SMART_LINUX_NO_HISTORY=1`. AI Context Injection is implemented: `explain` and `fix` commands dynamically fetch the last 5 chronological commands to give the LLM workflow awareness, protected by graceful degradation if the database is locked.
 - Additional AI features (documentation lookup) are planned but not yet implemented.
 
 ## Known Limitations
@@ -195,9 +195,11 @@ Suggested fix:
 
 ## Privacy Note
 
-The `explain`, `fix`, and `search` commands send the command text, error output, or your query to Groq's API for processing. Avoid running these commands on text that contains secrets, passwords, or sensitive data, since that content leaves your machine.
+The `explain`, `fix`, and `search` commands send the command text, error output, or your query to Groq's API for processing. The explain, fix, and search commands send your terminal queries to Groq's API for processing. Starting in v0.7.0, `explain` and `fix` also securely read your recent local command history to provide context-aware solutions.
 
-Separately, `smart-linux run` records a local history of command invocations (command text, exit code, duration, working directory, and — for failures only — a truncated stderr snippet) in a SQLite database on your machine. This data never leaves your machine and is not sent to any API. `stdout` is never recorded. To disable history recording entirely, set `SMART_LINUX_NO_HISTORY=1`. To view or erase recorded history, use `smart-linux history` and `smart-linux history clear`.
+Security First: Before any history leaves your machine, it passes through a local Regex Redactor `(linux_assistant.utils.redactor)` which automatically scrubs standard environment variables, inline passwords, and Bearer tokens, replacing them with [REDACTED]. However, you should still exercise caution and avoid running these commands on highly sensitive plaintext data.
+
+Separately, `smart-linux run` records your command invocations (command text, exit code, duration, working directory, and truncated stderr) in a local SQLite database. `stdout` is never recorded. To disable history recording entirely, set `SMART_LINUX_NO_HISTORY=1`. To view or erase recorded history, use `smart-linux history` and `smart-linux history clear`.
 
 ## Install from PyPI
 
