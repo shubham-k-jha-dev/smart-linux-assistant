@@ -4,10 +4,12 @@ AI-powered explanations for Linux commands and error messages.
 
 from __future__ import annotations
 import groq
-from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client
-from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError, RateLimitError
-from linux_assistant.utils.logger import get_logger
+import typer
 from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client, truncate_for_api
+from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError, RateLimitError, HistoryError
+from linux_assistant.utils.logger import get_logger
+from linux_assistant.repositories.history_repository import HistoryRepository
+from linux_assistant.utils.redactor import scrub_secrets
 
 logger = get_logger(__name__)
 
@@ -93,7 +95,8 @@ class Explainer:
     
     def suggest_fix(self, command: str, error: str) -> str | None:
         """
-        Suggest a corrected version of a failed shell command.
+        Suggest a corrected version of a failed shell command,
+        utilizing recent command history for context if available.
         """
         command = command.strip()
 
@@ -103,8 +106,33 @@ class Explainer:
             raise ValidationError("Command to fix cannot be empty.")
 
         error = truncate_for_api(error, keep_end=True)
-
         user_content = f"Command: {command}\nError: {error.strip()}"
+
+        # Fetch History
+        history_context = ""
+        try:
+            repo = HistoryRepository()
+            recent_entries = repo.get_recent_context(limit=5)
+            
+            if recent_entries:
+                scrubbed_lines = []
+                for entry in recent_entries:
+                    status = "SUCCESS" if entry.exit_code == 0 else f"FAILED ({entry.exit_code})"
+                    scrubbed_cmd = scrub_secrets(entry.command)
+                    scrubbed_lines.append(f"[{status}] {scrubbed_cmd}")
+                
+                history_context = "\n".join(scrubbed_lines)
+        except HistoryError:
+            # GRACEFUL DEGRADATION: Print a warning, but don't crash
+            typer.secho(
+                "⚠ Warning: Could not read local history (database locked). Falling back to generic explanation.", 
+                fg=typer.colors.YELLOW
+            )
+
+        # Inject into the System Prompt
+        dynamic_system_prompt = FIX_SYSTEM_PROMPT
+        if history_context:
+            dynamic_system_prompt += f"\n\nUser's Recent Command History (Chronological):\n{history_context}"
 
         logger.info("Requesting fix suggestion for: %s", command)
 
@@ -112,7 +140,7 @@ class Explainer:
             response = self._client.chat.completions.create(
                 model=GROQ_MODEL,
                 messages=[
-                    {"role": "system", "content": FIX_SYSTEM_PROMPT},
+                    {"role": "system", "content": dynamic_system_prompt},
                     {"role": "user", "content": user_content},
                 ],
             )

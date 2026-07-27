@@ -219,3 +219,34 @@ class TestClear:
         repo.clear()
 
         assert repo.list_recent() == []
+        
+class TestGetRecentContext:
+    """Tests for HistoryRepository.get_recent_context()."""
+
+    def test_get_recent_context_returns_chronological_order(self, repo: HistoryRepository) -> None:
+        repo.clear()
+        
+        # Simulate a user typing 3 commands over time
+        repo.record(
+            command="mkdir my_project", exit_code=0, duration_seconds=0.1, 
+            working_directory=TEST_CWD, stderr=""
+        )
+        repo.record(
+            command="cd my_project", exit_code=0, duration_seconds=0.1, 
+            working_directory=TEST_CWD, stderr=""
+        )
+        repo.record(
+            command="npm run build", exit_code=1, duration_seconds=1.2, 
+            working_directory=TEST_CWD, stderr="missing package.json"
+        )
+        
+        # Fetch the last 2 commands for context
+        context = repo.get_recent_context(limit=2)
+        
+        assert len(context) == 2
+        # The AI needs to read them in the order they happened (Chronological)
+        assert context[0].command == "cd my_project"
+        assert context[1].command == "npm run build"
+
+    def test_get_recent_context_empty_db(self, repo: HistoryRepository) -> None:
+        assert repo.get_recent_context(limit=5) == []

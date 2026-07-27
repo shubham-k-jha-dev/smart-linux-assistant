@@ -171,3 +171,51 @@ class HistoryRepository:
                 connection.execute("DELETE FROM history")
         except sqlite3.Error as exc:
             raise HistoryError(f"Could not clear command history: {exc}") from exc
+    
+    def get_recent_context(self, limit: int = 5) -> list['HistoryEntry']:
+        """
+        Fetch the most recent commands in chronological order (oldest first).
+        This is specifically formatted for AI context injection.
+        """
+        query = """
+            SELECT id, executed_at, command, exit_code, duration_seconds, working_directory, stderr_snippet
+            FROM (
+                SELECT * FROM history
+                ORDER BY executed_at DESC
+                LIMIT ?
+            )
+            ORDER BY executed_at ASC
+        """
+        import sqlite3
+        from linux_assistant.exceptions import HistoryError
+        from linux_assistant.repositories.history_repository import HistoryEntry
+
+        try:
+            with sqlite3.connect(self._db_path, timeout=2.0) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute(query, (limit,))
+                rows = cursor.fetchall()
+
+            # Explicitly map the SQLite rows to HistoryEntry objects
+            entries = []
+            for row in rows:
+                entries.append(
+                    HistoryEntry(
+                        id=row["id"],
+                        executed_at=row["executed_at"],
+                        command=row["command"],
+                        exit_code=row["exit_code"],
+                        duration_seconds=row["duration_seconds"],
+                        working_directory=row["working_directory"],
+                        stderr_snippet=row["stderr_snippet"]
+                    )
+                )
+            return entries
+
+        except sqlite3.OperationalError as e:
+            # If the database is brand new and the table isn't created yet, return empty history
+            if "no such table" in str(e):
+                return []
+            # Otherwise, it's a real lock/access issue, so we raise it for graceful degradation
+            raise HistoryError(f"Database locked or inaccessible: {e}")
