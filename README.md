@@ -193,9 +193,11 @@ Suggested fix:
 
 ## Privacy Note
 
-The `explain`, `fix`, and `search` commands send the command text, error output, or your query to Groq's API for processing. The explain, fix, and search commands send your terminal queries to Groq's API for processing. Starting in v0.7.0, `explain` and `fix` also securely read your recent local command history to provide context-aware solutions.
+The `explain`, `fix`, and `search` commands send your terminal queries to Groq's API for processing. 
 
-Security First: Before any history leaves your machine, it passes through a local Regex Redactor `(linux_assistant.utils.redactor)` which automatically scrubs standard environment variables, inline passwords, and Bearer tokens, replacing them with [REDACTED]. However, you should still exercise caution and avoid running these commands on highly sensitive plaintext data.
+**Important update starting in v0.7.0+:** To provide context-aware solutions, the `fix` command securely reads your 5 most recent local commands and injects them into the Groq API prompt. 
+
+**Security First:** Before any history leaves your machine, it passes through a local Regex Redactor (`linux_assistant.utils.redactor`) which automatically scrubs standard environment variables, inline passwords, AWS keys, and Bearer tokens, replacing them with `[REDACTED]`. However, you should still exercise caution and avoid running AI commands immediately after working with highly sensitive, non-standard plaintext secrets.
 
 Separately, `smart-linux run` records your command invocations (command text, exit code, duration, working directory, and truncated stderr) in a local SQLite database. `stdout` is never recorded. To disable history recording entirely, set `SMART_LINUX_NO_HISTORY=1`. To view or erase recorded history, use `smart-linux history` and `smart-linux history clear`.
 

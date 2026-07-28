@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import sys
 import typer
+import re
 from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, HistoryError, ValidationError, MissingAPIKeyError, ServiceError, RateLimitError
 from linux_assistant.services.explainer import Explainer
 from linux_assistant.services.command_executor import CommandExecutor
@@ -322,8 +323,24 @@ def search(
 
     typer.echo(result)
     
-    if hasattr(result, "command") and result.command:
-        _prompt_and_execute(result.command)
+    typer.echo(result)
+    
+    # Extract the command from the AI's markdown output to trigger the agentic prompt
+    # First, try to find a markdown code block (```bash ... ```)
+    match = re.search(r'```(?:bash|sh|shell)?\n(.*?)\n```', result, re.DOTALL)
+    extracted_command = None
+    
+    if match:
+        extracted_command = match.group(1).strip()
+    else:
+        # Fallback: look for a line starting with a shell prompt ($)
+        fallback_match = re.search(r'(?:^|\n)(?:(?:\$|#)\s+)?([a-zA-Z0-9_].*)', result)
+        if fallback_match:
+            extracted_command = fallback_match.group(1).strip()
+            extracted_command = extracted_command.replace("`", "") # Strip stray backticks
+
+    if extracted_command:
+        _prompt_and_execute(extracted_command)
 
 
 history_app = typer.Typer(help="View and manage recorded command history.")
@@ -418,7 +435,14 @@ def _prompt_and_execute(command: str) -> None:
     typer.secho(f"Executing: {command}\n", fg=typer.colors.CYAN)
     
     executor = CommandExecutor()
-    result = executor.execute(command)
+    try:
+        result = executor.execute(command)
+    except CommandTimeoutError as exc:
+        typer.secho(f"Timed out: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=124)
+    except CommandExecutionError as exc:
+        typer.secho(f"Execution error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
     
     if result.succeeded:
         if result.stdout:

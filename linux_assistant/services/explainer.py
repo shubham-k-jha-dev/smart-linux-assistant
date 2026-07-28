@@ -4,7 +4,6 @@ AI-powered explanations for Linux commands and error messages.
 
 from __future__ import annotations
 import groq
-import typer
 from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client, truncate_for_api
 from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError, RateLimitError, HistoryError
 from linux_assistant.utils.logger import get_logger
@@ -122,11 +121,11 @@ class Explainer:
                     scrubbed_lines.append(f"[{status}] {scrubbed_cmd}")
                 
                 history_context = "\n".join(scrubbed_lines)
-        except HistoryError:
-            # GRACEFUL DEGRADATION: Print a warning, but don't crash
-            typer.secho(
-                "⚠ Warning: Could not read local history (database locked). Falling back to generic explanation.", 
-                fg=typer.colors.YELLOW
+        except HistoryError as exc:
+            # GRACEFUL DEGRADATION: Log the failure but do not crash or print to stdout directly.
+            logger.warning(
+                "Could not read local history (database locked). Falling back to generic explanation. Error: %s", 
+                exc
             )
 
         # Inject into the System Prompt
