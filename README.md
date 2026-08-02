@@ -73,6 +73,37 @@ This project does not require any environment variables for its core CLI functio
 | --- | --- | --- |
 | (none) | No required environment variables for CLI execution | - |
 
+
+## Configuration
+
+Smart Linux Assistant supports a user configuration file. If no configuration file is present, the application automatically falls back to built-in defaults.
+
+By default, the application looks for:
+
+```text
+~/.config/smart-linux-assistant/config.toml
+```
+
+A complete example configuration is available in the repository as:
+```
+config.toml.example
+```
+Copy it into your local configuration directory and modify only the values you want to customize.
+Example:
+```
+mkdir -p ~/.config/smart-linux-assistant
+cp config.toml.example ~/.config/smart-linux-assistant/config.toml
+```
+Current configurable options include:
+
+- AI provider
+- AI model
+- API timeout
+- Retry count
+- Command history settings
+- Logging verbosity
+- Privacy (secret redaction)
+
 ## Usage / API Reference
 
 The project exposes the console scripts `smart-linux` and `sla` (configured in `pyproject.toml`).

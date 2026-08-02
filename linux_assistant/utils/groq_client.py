@@ -5,14 +5,14 @@ Shared Groq client construction for AI-powered services.
 from __future__ import annotations
 import os
 from groq import Groq
+from linux_assistant.config.loader import load_config
 from linux_assistant.exceptions import MissingAPIKeyError
 
 GROQ_API_KEY = "GROQ_API_KEY"
-GROQ_MODEL = "llama-3.3-70b-versatile"
-
+CONFIG = load_config()
+GROQ_MODEL = CONFIG.ai.model
 MAX_INPUT_CHARACTERS = 4000
-REQUEST_TIMEOUT_SECONDS = 30.0
-MAX_RETRIES = 2
+
 
 
 def build_groq_client() -> Groq:
@@ -34,8 +34,8 @@ def build_groq_client() -> Groq:
 
     return Groq(
         api_key=api_key,
-        timeout=REQUEST_TIMEOUT_SECONDS,
-        max_retries=MAX_RETRIES,
+        timeout=CONFIG.ai.timeout_seconds,
+        max_retries=CONFIG.ai.max_retries,
     )
     
 def truncate_for_api(text: str, *, keep_end: bool = False) -> str:
