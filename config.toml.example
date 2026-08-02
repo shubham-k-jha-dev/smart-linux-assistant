@@ -1,0 +1,45 @@
+# Smart Linux Assistant Configuration
+#
+# Copy this file to:
+#
+# ~/.config/smart-linux-assistant/config.toml
+#
+# and modify the values as needed.
+
+[ai]
+
+# AI provider.
+# Supported:
+#   groq
+provider = "groq"
+
+# Model used for AI-powered features.
+model = "llama-3.3-70b-versatile"
+
+# API request timeout in seconds.
+timeout_seconds = 30.0
+
+# Number of retries for transient API failures.
+max_retries = 2
+
+
+[history]
+
+# Enable or disable command history.
+enabled = true
+
+# Maximum number of history entries to retain.
+max_entries = 5000
+
+
+[logging]
+
+# Display verbose logs in the terminal.
+verbose = false
+
+
+[privacy]
+
+# Redact detected secrets before sending data
+# to external AI providers.
+redaction_enabled = true

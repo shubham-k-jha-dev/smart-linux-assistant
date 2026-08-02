@@ -4,7 +4,11 @@ AI-powered explanations for Linux commands and error messages.
 
 from __future__ import annotations
 import groq
-from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client, truncate_for_api
+from linux_assistant.utils.groq_client import (
+    GROQ_MODEL,
+    build_groq_client,
+    truncate_for_api,
+)
 from linux_assistant.exceptions import MissingAPIKeyError, ServiceError, ValidationError, RateLimitError, HistoryError
 from linux_assistant.utils.logger import get_logger
 from linux_assistant.repositories.history_repository import HistoryRepository

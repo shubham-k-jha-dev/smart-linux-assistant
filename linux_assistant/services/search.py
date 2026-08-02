@@ -5,10 +5,12 @@ AI-powered natural-language search for Linux commands and tasks.
 from __future__ import annotations
 import groq
 from linux_assistant.exceptions import ServiceError, ValidationError, RateLimitError
-from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client
+from linux_assistant.utils.groq_client import (
+    GROQ_MODEL,
+    build_groq_client,
+    truncate_for_api,
+)
 from linux_assistant.utils.logger import get_logger
-from linux_assistant.utils.groq_client import GROQ_MODEL, build_groq_client, truncate_for_api
-
 logger = get_logger(__name__)
 
 SEARCH_SYSTEM_PROMPT = """You are a Linux command lookup tool operating in a raw terminal. The user will describe a desired action in plain language. Your objective is to provide a concrete, ready-to-run command and a brief explanation.
