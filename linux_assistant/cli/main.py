@@ -7,7 +7,7 @@ import os
 import sys
 import typer
 import re
-from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, HistoryError, ValidationError, MissingAPIKeyError, ServiceError, RateLimitError
+from linux_assistant.exceptions import CommandExecutionError, CommandFailedError, CommandTimeoutError, HistoryError, ValidationError, MissingAPIKeyError, ServiceError, RateLimitError, DocumentationError
 from linux_assistant.services.explainer import Explainer
 from linux_assistant.services.command_executor import CommandExecutor
 from linux_assistant.repositories import HistoryRepository
@@ -16,6 +16,7 @@ from linux_assistant.utils.shell import command_exists
 from linux_assistant.services.search import Searcher
 from linux_assistant.models.history_entry import HistoryEntry
 from linux_assistant.core.safety import is_dangerous_command
+from linux_assistant.services.documentation_service import DocumentationService
 
 logger = get_logger(__name__)
 
@@ -230,6 +231,37 @@ def explain(
         raise typer.Exit(code=1)
 
     typer.echo(result)
+
+@app.command()
+def docs(
+    command: str = typer.Argument(
+        ...,
+        help="Linux command to display local documentation for.",
+    ),
+) -> None:
+    """
+    Display concise local documentation from the system manual pages.
+    """
+    try:
+        service = DocumentationService()
+        documentation = service.get_documentation(command)
+
+        typer.echo(documentation)
+
+    except ValidationError as exc:
+        typer.secho(
+            f"Invalid input: {exc}",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+
+    except DocumentationError as exc:
+        typer.secho(
+            f"Documentation error: {exc}",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+    
     
 @app.command()
 def fix(
