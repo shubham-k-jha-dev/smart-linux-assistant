@@ -3,16 +3,24 @@ Shared Groq client construction for AI-powered services.
 """
 
 from __future__ import annotations
+
 import os
+from functools import lru_cache
+
 from groq import Groq
+
 from linux_assistant.config.loader import load_config
 from linux_assistant.exceptions import MissingAPIKeyError
 
-GROQ_API_KEY = "GROQ_API_KEY"
-CONFIG = load_config()
-GROQ_MODEL = CONFIG.ai.model
-MAX_INPUT_CHARACTERS = 4000
 
+@lru_cache(maxsize=1)
+def get_config():
+    """Lazily loads and caches the configuration on first use."""
+    return load_config()
+
+
+GROQ_API_KEY = "GROQ_API_KEY"
+MAX_INPUT_CHARACTERS = 4000
 
 
 def build_groq_client() -> Groq:
@@ -32,12 +40,15 @@ def build_groq_client() -> Groq:
     if not api_key:
         raise MissingAPIKeyError(GROQ_API_KEY)
 
+    config = get_config()
+
     return Groq(
         api_key=api_key,
-        timeout=CONFIG.ai.timeout_seconds,
-        max_retries=CONFIG.ai.max_retries,
+        timeout=config.ai.timeout_seconds,
+        max_retries=config.ai.max_retries,
     )
-    
+
+
 def truncate_for_api(text: str, *, keep_end: bool = False) -> str:
     """
     Truncate text to a safe length before sending it to the API,

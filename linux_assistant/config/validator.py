@@ -37,12 +37,12 @@ def validate_config(data: dict[str, Any]) -> AppConfig:
 
     return AppConfig(
         ai=AIConfig(
-            provider=_get_str(
+            provider=_get_non_empty_str(
                 ai,
                 "provider",
                 DEFAULT_CONFIG.ai.provider,
             ),
-            model=_get_str(
+            model=_get_non_empty_str(
                 ai,
                 "model",
                 DEFAULT_CONFIG.ai.model,
@@ -108,6 +108,22 @@ def _get_str(
 
     return value
 
+def _get_non_empty_str(
+    table: dict[str, Any],
+    key: str,
+    default: str,
+) -> str:
+    """
+    Retrieve a required non-empty string configuration value.
+    """
+    value = _get_str(table, key, default)
+
+    if not value.strip():
+        raise ConfigurationError(
+            f"'{key}' cannot be empty."
+        )
+
+    return value
 
 def _get_int(
     table: dict[str, Any],

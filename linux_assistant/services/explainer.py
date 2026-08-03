@@ -5,7 +5,7 @@ AI-powered explanations for Linux commands and error messages.
 from __future__ import annotations
 import groq
 from linux_assistant.utils.groq_client import (
-    GROQ_MODEL,
+    get_config,
     build_groq_client,
     truncate_for_api,
 )
@@ -74,7 +74,7 @@ class Explainer:
 
         try:
             response = self._client.chat.completions.create(
-                model=GROQ_MODEL,
+                model=get_config().ai.model,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": text},
@@ -141,7 +141,7 @@ class Explainer:
 
         try:
             response = self._client.chat.completions.create(
-                model=GROQ_MODEL,
+                model=get_config().ai.model,
                 messages=[
                     {"role": "system", "content": dynamic_system_prompt},
                     {"role": "user", "content": user_content},
