@@ -44,6 +44,13 @@ class ServiceError(SmartLinuxAssistantError):
     operation due to an application-level failure.
     """
 
+class DocumentationError(ServiceError):
+    """
+    Raised when local Linux documentation cannot be retrieved,
+    for example because the requested manual page does not exist
+    or the underlying documentation command fails.
+    """
+    
 
 class ValidationError(SmartLinuxAssistantError):
     """

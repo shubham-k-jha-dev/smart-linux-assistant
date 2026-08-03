@@ -16,6 +16,7 @@ from .base import (
     ServiceError,
     SmartLinuxAssistantError,
     ValidationError,
+    DocumentationError,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "CommandFailedError",
     "MissingAPIKeyError",
     "RateLimitError",
+    DocumentationError",
 ]
