@@ -3,13 +3,20 @@ Tests for the command-line interface.
 """
 
 from __future__ import annotations
+
 import os
-import pytest
-from typer.testing import CliRunner
-from linux_assistant.cli.main import app
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
+from typer.testing import CliRunner
+
+from linux_assistant.cli.main import app
+from linux_assistant.exceptions import DocumentationError, HistoryError
+from linux_assistant.models import HistoryEntry
+
 runner = CliRunner()
+
 
 @pytest.fixture(autouse=True)
 def _mock_history_repository():
@@ -20,8 +27,8 @@ def _mock_history_repository():
     """
     with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
         yield MockHistoryRepo
-        
-        
+
+
 class TestRunCommand:
     """Tests for `smart-linux run`."""
 
@@ -49,7 +56,7 @@ class TestRunCommand:
     def test_run_respects_timeout_flag(self) -> None:
         result = runner.invoke(app, ["run", "sleep 5", "--timeout", "1"])
         assert result.exit_code == 124
-    
+
     def test_run_without_suggest_fix_flag_does_not_invoke_explainer(self) -> None:
         with patch("linux_assistant.cli.main.Explainer") as MockExplainerClass:
             result = runner.invoke(app, ["run", "ls /no-such-directory-xyz"])
@@ -58,7 +65,7 @@ class TestRunCommand:
         assert result.exit_code != 0
 
     def test_run_suggest_fix_prints_suggestion_on_failure(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
 
@@ -73,7 +80,7 @@ class TestRunCommand:
         assert "ls /correct-directory" in result.output
 
     def test_run_suggest_fix_preserves_original_exit_code(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
 
@@ -88,7 +95,7 @@ class TestRunCommand:
         assert result.exit_code == 2  # real `ls` failure code, unchanged by suggestion
 
     def test_run_suggest_fix_handles_missing_api_key_gracefully(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("GROQ_API_KEY", raising=False)
 
@@ -102,7 +109,7 @@ class TestRunCommand:
         assert "GROQ_API_KEY" in result.output
 
     def test_run_suggest_fix_reports_no_confident_fix(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
 
@@ -116,54 +123,12 @@ class TestRunCommand:
 
         assert result.exit_code == 2
         assert "No confident fix" in result.output
-        
+
     def test_run_suggest_fix_without_check_is_rejected(self) -> None:
         result = runner.invoke(app, ["run", "echo hello", "--suggest-fix"])
         assert result.exit_code == 2
         assert "--check" in result.output
-        
-    def test_run_records_history_on_success(self) -> None:
-        with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
-            mock_instance = MockHistoryRepo.return_value
-            result = runner.invoke(app, ["run", "echo hello"])
 
-        assert result.exit_code == 0
-        mock_instance.record.assert_called_once()
-        call_kwargs = mock_instance.record.call_args.kwargs
-        assert call_kwargs["command"] == "echo hello"
-        assert call_kwargs["exit_code"] == 0
-
-    def test_run_records_history_on_failure(self) -> None:
-        with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
-            mock_instance = MockHistoryRepo.return_value
-            result = runner.invoke(app, ["run", "ls /no-such-directory-xyz", "--check"])
-
-        assert result.exit_code == 2
-        mock_instance.record.assert_called_once()
-        call_kwargs = mock_instance.record.call_args.kwargs
-        assert call_kwargs["exit_code"] == 2
-
-    def test_run_respects_history_opt_out_env_var(
-        self, monkeypatch: "pytest.MonkeyPatch"
-    ) -> None:
-        monkeypatch.setenv("SMART_LINUX_NO_HISTORY", "1")
-
-        with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
-            result = runner.invoke(app, ["run", "echo hello"])
-
-        assert result.exit_code == 0
-        MockHistoryRepo.assert_not_called()
-
-    def test_run_does_not_crash_when_history_recording_fails(self) -> None:
-        with patch("linux_assistant.cli.main.HistoryRepository") as MockHistoryRepo:
-            from linux_assistant.exceptions import HistoryError
-
-            MockHistoryRepo.return_value.record.side_effect = HistoryError("disk full")
-            result = runner.invoke(app, ["run", "echo hello"], catch_exceptions=False)
-
-        assert result.exit_code == 0
-        assert "hello" in result.output
-        
     def test_run_records_history_on_success(self, _mock_history_repository) -> None:
         mock_instance = _mock_history_repository.return_value
         result = runner.invoke(app, ["run", "echo hello"])
@@ -184,7 +149,7 @@ class TestRunCommand:
         assert call_kwargs["exit_code"] == 2
 
     def test_run_respects_history_opt_out_env_var(
-        self, _mock_history_repository, monkeypatch: "pytest.MonkeyPatch"
+        self, _mock_history_repository, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("SMART_LINUX_NO_HISTORY", "1")
         result = runner.invoke(app, ["run", "echo hello"])
@@ -195,14 +160,15 @@ class TestRunCommand:
     def test_run_does_not_crash_when_history_recording_fails(
         self, _mock_history_repository
     ) -> None:
-        from linux_assistant.exceptions import HistoryError
-
-        _mock_history_repository.return_value.record.side_effect = HistoryError("disk full")
+        _mock_history_repository.return_value.record.side_effect = HistoryError(
+            "disk full"
+        )
         result = runner.invoke(app, ["run", "echo hello"], catch_exceptions=False)
 
         assert result.exit_code == 0
         assert "hello" in result.output
-        
+
+
 class TestDoctorCommand:
     """Tests for `smart-linux doctor`."""
 
@@ -213,12 +179,13 @@ class TestDoctorCommand:
     def test_doctor_exit_code_is_zero_or_one(self) -> None:
         result = runner.invoke(app, ["doctor"])
         assert result.exit_code in (0, 1)
-        
+
+
 class TestExplainCommand:
     """Tests for `smart-linux explain`."""
 
     def test_explain_fails_cleanly_without_api_key(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("GROQ_API_KEY", raising=False)
         result = runner.invoke(app, ["explain", "some error"], catch_exceptions=False)
@@ -226,16 +193,14 @@ class TestExplainCommand:
         assert "GROQ_API_KEY" in result.output
 
     def test_explain_returns_explanation_on_success(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
 
         mock_response = MagicMock()
         mock_response.choices[0].message.content = "Mocked explanation."
 
-        with patch(
-            "linux_assistant.cli.main.Explainer"
-        ) as MockExplainerClass:
+        with patch("linux_assistant.cli.main.Explainer") as MockExplainerClass:
             mock_instance = MockExplainerClass.return_value
             mock_instance.explain.return_value = "Mocked explanation."
 
@@ -243,7 +208,8 @@ class TestExplainCommand:
 
         assert result.exit_code == 0
         assert "Mocked explanation." in result.stdout
-        
+
+
 class TestFixCommand:
     """Tests for `smart-linux fix`."""
 
@@ -253,7 +219,7 @@ class TestFixCommand:
         assert "nothing to fix" in result.output
 
     def test_fix_fails_cleanly_without_api_key(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("GROQ_API_KEY", raising=False)
         result = runner.invoke(
@@ -263,7 +229,7 @@ class TestFixCommand:
         assert "GROQ_API_KEY" in result.output
 
     def test_fix_prints_suggestion_on_failure(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
 
@@ -277,7 +243,7 @@ class TestFixCommand:
         assert "git status" in result.output
 
     def test_fix_reports_no_fix_available(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
 
@@ -289,12 +255,13 @@ class TestFixCommand:
 
         assert result.exit_code == 1
         assert "No confident fix" in result.output
-        
+
+
 class TestSearchCommand:
     """Tests for `smart-linux search`."""
 
     def test_search_fails_cleanly_without_api_key(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("GROQ_API_KEY", raising=False)
         result = runner.invoke(
@@ -304,7 +271,7 @@ class TestSearchCommand:
         assert "GROQ_API_KEY" in result.output
 
     def test_search_returns_answer_on_success(
-        self, monkeypatch: "pytest.MonkeyPatch"
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("GROQ_API_KEY", "fake-key-for-testing")
 
@@ -320,7 +287,8 @@ class TestSearchCommand:
     def test_search_rejects_empty_query(self) -> None:
         result = runner.invoke(app, ["search", ""])
         assert result.exit_code == 2
-        
+
+
 class TestVerboseLogging:
     """Tests for the global --verbose flag and console log suppression."""
 
@@ -330,28 +298,26 @@ class TestVerboseLogging:
         assert "hello" in result.output
 
     def test_verbose_flag_unlocks_console_handler_level(self) -> None:
-        from linux_assistant.utils.logger import _console_handlers
         import logging
+        from linux_assistant.utils.logger import _console_handlers
 
         result = runner.invoke(app, ["--verbose", "run", "echo hello"])
         assert result.exit_code == 0
         assert all(h.level == logging.INFO for h in _console_handlers)
 
     def test_default_state_suppresses_console_handler_level(self) -> None:
-        from linux_assistant.utils.logger import _console_handlers
         import logging
+        from linux_assistant.utils.logger import _console_handlers
 
         result = runner.invoke(app, ["run", "echo hello"])
         assert result.exit_code == 0
         assert all(h.level > logging.INFO for h in _console_handlers)
-        
+
+
 class TestHistoryCommand:
     """Tests for `smart-linux history`."""
 
     def test_history_lists_entries(self, _mock_history_repository) -> None:
-        from linux_assistant.models import HistoryEntry
-        from datetime import datetime
-
         mock_entry = HistoryEntry(
             id=1,
             command="echo hello",
@@ -371,9 +337,6 @@ class TestHistoryCommand:
     def test_history_shows_stderr_snippet_for_failures(
         self, _mock_history_repository
     ) -> None:
-        from linux_assistant.models import HistoryEntry
-        from datetime import datetime
-
         mock_entry = HistoryEntry(
             id=1,
             command="ls /nope",
@@ -411,8 +374,6 @@ class TestHistoryCommand:
     def test_history_handles_read_failure_gracefully(
         self, _mock_history_repository
     ) -> None:
-        from linux_assistant.exceptions import HistoryError
-
         _mock_history_repository.return_value.list_recent.side_effect = HistoryError(
             "db locked"
         )
@@ -432,8 +393,6 @@ class TestHistoryCommand:
     def test_history_clear_handles_failure_gracefully(
         self, _mock_history_repository
     ) -> None:
-        from linux_assistant.exceptions import HistoryError
-
         _mock_history_repository.return_value.clear.side_effect = HistoryError(
             "permission denied"
         )
@@ -442,3 +401,41 @@ class TestHistoryCommand:
 
         assert result.exit_code == 1
         assert "Could not clear history" in result.output
+
+
+class TestDocsCommand:
+    """Tests for `smart-linux docs`."""
+
+    def test_docs_prints_documentation(self) -> None:
+        with patch("linux_assistant.cli.main.DocumentationService") as MockService:
+            MockService.return_value.get_documentation.return_value = (
+                "NAME\nls - list directory contents"
+            )
+
+            result = runner.invoke(app, ["docs", "ls"])
+
+        assert result.exit_code == 0
+        assert "NAME" in result.output
+
+    def test_docs_handles_documentation_error(self) -> None:
+        with patch("linux_assistant.cli.main.DocumentationService") as MockService:
+            MockService.return_value.get_documentation.side_effect = DocumentationError(
+                "No manual page."
+            )
+
+            result = runner.invoke(app, ["docs", "abc"])
+
+        assert result.exit_code == 1
+        assert "Documentation error" in result.output
+
+    def test_docs_rejects_empty_argument(self) -> None:
+        result = runner.invoke(app, ["docs", ""])
+
+        # Retained exit_code 1 based on current implementation limits, though Typer natively prefers 2 for CLI arg usage errors.
+        assert result.exit_code == 1
+        assert "Invalid input" in result.output
+
+    def test_docs_requires_argument(self) -> None:
+        result = runner.invoke(app, ["docs"])
+
+        assert result.exit_code == 2
