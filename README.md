@@ -19,6 +19,7 @@ Smart Linux Assistant is an AI-powered Linux operations assistant that understan
 * CLI (`linux_assistant.cli.main`) accepts user commands and options and delegates execution to `CommandExecutor`.
 * `CommandExecutor` runs shell commands using `subprocess.run` and returns a `CommandResult` dataclass describing the outcome.
 * Centralized logging is provided by `linux_assistant.utils.logger`, writing to `logs/smart_linux_assistant.log` with rotation.
+* Configuration management is handled by `linux_assistant.config` using typed Dataclasses (`AppConfig`), lazy loading (`get_config()`), and strict TOML validation.
 * Runtime paths and directories are managed by `linux_assistant.config.settings` and can be initialized with `initialize_app_filesystem()`.
 
 ## Tech Stack
@@ -110,6 +111,25 @@ Example:
 mkdir -p ~/.config/smart-linux-assistant
 cp config.toml.example ~/.config/smart-linux-assistant/config.toml
 ```
+Example `config.toml` structure:
+
+```toml
+[ai]
+provider = "groq"
+model = "llama-3.3-70b-versatile"
+timeout_seconds = 10.0
+max_retries = 3
+
+[history]
+enabled = true
+max_entries = 5000
+
+[logging]
+verbose = false
+
+[privacy]
+redaction_enabled = true
+
 Current configurable options include:
 
 - AI provider
@@ -255,7 +275,7 @@ Suggested fix:
 
 * Core CLI: implemented — `run` and `doctor` commands are provided in `linux_assistant.cli.main`.
 * Command execution: implemented using `linux_assistant.services.command_executor.CommandExecutor` which returns `CommandResult` instances.
-* Logging & configuration: implemented via `linux_assistant.utils.logger` and `linux_assistant.config.settings`.
+* Logging & typed configuration: implemented via `linux_assistant.utils.logger` and `linux_assistant.config` (featuring XDG compliance, strict TOML validation, dataclass schema mapping, and lazy cached loading via `lru_cache`).
 * Packaging: console script entry points are declared in `pyproject.toml`.
 * AI-powered explanations: implemented — `smart-linux explain` uses the Groq API (`llama-3.3-70b-versatile`) to generate plain-language explanations of commands and error messages, via `linux_assistant.services.explainer.Explainer`. Requires a user-supplied `GROQ_API_KEY` environment variable.
 * AI-powered fix suggestions: implemented — `smart-linux fix` runs a failing command and suggests a corrected version; `smart-linux run --check --suggest-fix` offers the same suggestion inline as part of normal command execution. Both use `linux_assistant.services.explainer.Explainer.suggest_fix()`.
