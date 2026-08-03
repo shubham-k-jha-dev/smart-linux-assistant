@@ -2,9 +2,17 @@
 
 Smart Linux Assistant is an AI-powered Linux operations assistant that understands natural language, safely executes shell commands, retrieves Linux knowledge, explains errors, and assists users with troubleshooting. The current version implements the core command execution engine and foundational architecture for future AI capabilities.
 
-## Project Overview
 
-Smart Linux Assistant is a command-line utility that executes shell commands and returns structured outcomes. The tool captures the command, exit code, stdout, stderr, execution timestamp, and duration to make downstream automation and logging straightforward.
+## Features
+
+- Execute Linux commands safely
+- AI-powered command explanations
+- AI-assisted command repair
+- Natural language Linux search
+- Local Linux manual page lookup
+- Command history with context-aware AI
+- Built-in safety checks for destructive commands
+- Configurable AI providers and runtime settings
 
 ## System Architecture
 
@@ -18,6 +26,7 @@ Smart Linux Assistant is a command-line utility that executes shell commands and
 * Python 3.11+
 * Typer (CLI)
 * Standard library: `subprocess`, `logging`, `shutil`, `dataclasses`, `pathlib`, `datetime`
+* SQLite (command history)
 
 ## Prerequisites
 
@@ -67,12 +76,14 @@ initialize_app_filesystem()
 
 ## Environment Variables
 
-This project does not require any environment variables for its core CLI functionality. The repository includes an empty `.env.example` placeholder.
+Most CLI functionality (`run`, `history`, `docs`, and `doctor`) works entirely locally and does not require any environment variables.
 
-| Variable | Description | Example |
-| --- | --- | --- |
-| (none) | No required environment variables for CLI execution | - |
+AI-powered commands require a free Groq API key.
 
+| Variable | Description | Required For |
+|----------|-------------|--------------|
+| `GROQ_API_KEY` | Groq API key used for AI-powered features. | `explain`, `fix`, `search`, `run --suggest-fix` |
+| `SMART_LINUX_NO_HISTORY` | Set to `1` to disable recording of future command history in the local SQLite database. | Optional |
 
 ## Configuration
 
@@ -83,6 +94,11 @@ By default, the application looks for:
 ```text
 ~/.config/smart-linux-assistant/config.toml
 ```
+
+Smart Linux Assistant follows the XDG Base Directory Specification. If `XDG_CONFIG_HOME` is set, the configuration file is read from:
+`$XDG_CONFIG_HOME/smart-linux-assistant/config.toml`
+
+Otherwise, the default location `~/.config/smart-linux-assistant/config.toml` is used.
 
 A complete example configuration is available in the repository as:
 ```
@@ -163,6 +179,25 @@ smart-linux fix "ls /nonexistent"
 smart-linux search "find the 10 largest files in the current directory"
 ```
 
+* View local Linux documentation:
+
+```bash
+smart-linux docs ls
+```
+
+Examples:
+
+```bash
+smart-linux docs grep
+smart-linux docs chmod
+smart-linux docs find
+```
+
+This command displays concise sections from your local Linux manual pages, including the NAME, SYNOPSIS, DESCRIPTION, OPTIONS, and EXAMPLES sections when available.
+
+> Note:
+> This command requires the `man` utility to be installed on your system.
+
 * This returns a concrete command and brief explanation for the requested task, and **interactively prompts you to execute the command directly**. Requires the same `GROQ_API_KEY` environment variable as the `explain` command.
 * View or manage recorded command history:
 
@@ -204,6 +239,18 @@ Suggested fix:
 
 `--suggest-fix` requires `--check` (fix suggestions only apply to command failures detected via `--check`); calling it without `--check` exits immediately with an error.
 
+## Available Commands
+
+| Command | Purpose |
+|----------|---------|
+| `run` | Execute shell commands |
+| `doctor` | Verify system dependencies |
+| `explain` | AI explanation of commands/errors |
+| `fix` | AI-assisted command correction |
+| `search` | Natural language → Linux command |
+| `docs` | View local Linux manual pages |
+| `history` | View and manage command history |
+
 ## Roadmap / Current Status
 
 * Core CLI: implemented — `run` and `doctor` commands are provided in `linux_assistant.cli.main`.
@@ -216,11 +263,12 @@ Suggested fix:
 * Production hardening & Safety: implemented — API timeouts, retry logic, rate-limit-specific handling, input truncation, regex-based secret redaction, and a **Heuristic Safety Interceptor (`linux_assistant.core.safety`)** to detect and block destructive commands (like `rm -rf`, `mkfs`, `dd`) before execution.
 * Agentic Execution: implemented — `smart-linux fix` and `smart-linux search` now feature interactive confirmation prompts (`_prompt_and_execute`), allowing users to review AI-suggested commands and execute them instantly with safety guardrails.
 * Command history: implemented — `smart-linux run` records every invocation locally via `linux_assistant.repositories.history_repository.HistoryRepository` (SQLite-backed, FIFO-capped at 5,000 rows). View with `smart-linux history` (supports `--failures-only`), erase with `smart-linux history clear`, or disable entirely via `SMART_LINUX_NO_HISTORY=1`. AI Context Injection is implemented: `explain` and `fix` commands dynamically fetch the last 5 chronological commands to give the LLM workflow awareness, protected by graceful degradation if the database is locked.
-* Additional AI features (documentation lookup) are planned but not yet implemented.
+* Local documentation lookup: implemented — `smart-linux docs` retrieves Linux manual pages using the local `man` utility and extracts the most relevant sections (NAME, SYNOPSIS, DESCRIPTION, OPTIONS, and EXAMPLES) through `linux_assistant.services.documentation_service.DocumentationService`.
 
 ## Known Limitations
 
 * Tested and verified on Linux (native and WSL). Not yet tested on macOS or native Windows Python — behavior on those platforms is currently unverified, though the codebase avoids Linux-only APIs where possible.
+* The `docs` command depends on the `man` utility being available on the host system.
 
 ## Privacy Note
 
@@ -238,6 +286,11 @@ If this package is published to PyPI, it can be installed with:
 
 ```bash
 pip install smart-linux-assistant
+```
+Verify the installation:
+
+```bash
+smart-linux --help
 ```
 
 ## Testing
