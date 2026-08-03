@@ -31,5 +31,5 @@ __all__ = [
     "CommandFailedError",
     "MissingAPIKeyError",
     "RateLimitError",
-    DocumentationError",
+    "DocumentationError",
 ]
